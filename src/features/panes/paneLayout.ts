@@ -9,7 +9,7 @@ import {
   writePaneFitContentHeightToStorage,
 } from '../../core/storage';
 import { getCurrentSidebarPanes } from './paneCache';
-import { setActivePaneByIndex, focusNextVisiblePane } from './paneNavigation';
+import { setActivePaneByIndex } from './paneNavigation';
 import { globalState } from '../../core/pluginGlobalState';
 import { debounce } from '../../core/utils';
 import { updateTabs } from '../tabs/tabs';
@@ -458,13 +458,9 @@ export const observePaneCollapseState = (pane: Element): void => {
         syncCollapseOrientation(paneElement, isCollapsed);
         if (isCollapsed !== wasCollapsed) {
           updateTabs(globalState.cachedPanes);
-          if (isCollapsed) {
-            focusNextVisiblePane(paneElement, updateTabs);
-          } else {
-            const paneIndex = globalState.cachedPanes.indexOf(paneElement);
-            if (paneIndex !== -1) {
-              setActivePaneByIndex(paneIndex, globalState.cachedPanes);
-            }
+          const paneIndex = globalState.cachedPanes.indexOf(paneElement);
+          if (paneIndex !== -1) {
+            setActivePaneByIndex(paneIndex, globalState.cachedPanes);
           }
           paneElement._prevCollapsed = isCollapsed;
         }

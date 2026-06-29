@@ -9,7 +9,7 @@ import {
   disconnectPaneCollapseObserver,
   removeScrollListenerFromPane,
 } from './paneLayout';
-import { setActivePaneByIndex, focusNextVisiblePane } from './paneNavigation';
+import { setActivePaneByIndex } from './paneNavigation';
 import { getPluginSettings } from '../../core/pluginSettings';
 import { waitForDomChanges } from '../../core/utils';
 import { updateTabs } from '../tabs/tabs';
@@ -44,9 +44,7 @@ export const togglePaneCollapse = (index: number, updateTabs: (panes?: Element[]
       clearPaneDimensions(pane);
     }
     updateTabs(globalState.cachedPanes);
-    if (index === globalState.currentActivePaneIndex && pane.classList.contains('collapsed')) {
-      focusNextVisiblePane(pane as HTMLElement, updateTabs);
-    } else if (globalState.currentActivePaneIndex !== null) {
+    if (globalState.currentActivePaneIndex !== null) {
       setActivePaneByIndex(globalState.currentActivePaneIndex, globalState.cachedPanes);
     }
   }, 0.15);
