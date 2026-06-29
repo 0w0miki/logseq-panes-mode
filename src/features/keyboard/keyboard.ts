@@ -690,38 +690,3 @@ export const setupKeyboardShortcuts = async (togglePanesModeMode: () => Promise<
   ensurePaneArrowHotkeys();
 };
 
-export const preventNativeWindowShortcuts = (
-  updateTabs: (currentPanes?: Element[]) => void
-): (() => void) => {
-  const handler = (e: KeyboardEvent) => {
-    const isMod = isPrimaryShortcutModifierPressed(e);
-    const key = e.key?.toLowerCase();
-    const hasOnlyMod = !e.altKey && !e.shiftKey;
-    if (!isMod || !hasOnlyMod || !key) return;
-
-    if (key === 'w') {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      if (globalState.isPanesModeModeActive && isActivePaneIndexValid()) {
-        closePaneByIndex(globalState.currentActivePaneIndex as number, updateTabs);
-      }
-
-      return;
-    }
-
-    if (key === 'q') {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      if (globalState.isPanesModeModeActive) {
-        void handlePrevPane();
-      }
-    }
-  };
-  parent.window.addEventListener('keydown', handler, true);
-
-  return () => {
-    parent.window.removeEventListener('keydown', handler, true);
-  };
-};

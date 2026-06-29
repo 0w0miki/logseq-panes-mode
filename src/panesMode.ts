@@ -36,7 +36,7 @@ import {
 } from './features/observers/paneMutations';
 import { setupShiftClickPaneTracking } from './features/panes/shiftActions/paneShiftClick';
 import { setActivePaneByIndex, resetActiveTabIndex } from './features/panes/paneNavigation';
-import { preventNativeWindowShortcuts, setupKeyboardShortcuts } from './features/keyboard/keyboard';
+import { setupKeyboardShortcuts } from './features/keyboard/keyboard';
 import { setupMousePaneFocus } from './features/panes/paneFocusListeners';
 import { setupNativeDragDropListener } from './features/panes/paneNativeDnd';
 import { createTabsContainer, resetTabsState, updateTabs } from './features/tabs/tabs';
@@ -60,7 +60,6 @@ import { registerToolbarUIItems } from './features/toolbar/toolbar';
 
 let cleanupAutoPaneFocus: (() => void) | null = null;
 let cleanupNativeDragDropListener: (() => void) | null = null;
-let cleanupPreventNativeWindowShortcuts: (() => void) | null = null;
 let cleanupShiftClickTracking: (() => void) | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let panesContainerMutationsObserver: MutationObserver | null = null;
@@ -284,7 +283,6 @@ const initializeModalsAndInputs = () => {
   cleanupAutoPaneFocus = setupMousePaneFocus();
   cleanupNativeDragDropListener = setupNativeDragDropListener();
   cleanupShiftClickTracking = setupShiftClickPaneTracking();
-  cleanupPreventNativeWindowShortcuts = preventNativeWindowShortcuts(updateTabs);
 };
 
 const applyInitialPaneState = (currentPanes: Element[]) => {
@@ -406,11 +404,6 @@ const cleanupGlobalHandlers = () => {
   if (globalState.keyupEventHandler) {
     parent.window.removeEventListener('keyup', globalState.keyupEventHandler, true);
     globalState.keyupEventHandler = null;
-  }
-
-  if (cleanupPreventNativeWindowShortcuts) {
-    cleanupPreventNativeWindowShortcuts();
-    cleanupPreventNativeWindowShortcuts = null;
   }
 
   if (cleanupAutoPaneFocus) {
