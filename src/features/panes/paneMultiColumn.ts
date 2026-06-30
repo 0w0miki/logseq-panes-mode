@@ -45,7 +45,7 @@ export const updateMultiColumnForPane = (pane: Element): void => {
 };
 
 export const resetMultiColumnLayout = (): void => {
-  globalState.multiColumnPageIds = [];
+  globalState.multiColumnPageIds.clear();
   const panes = getCurrentSidebarPanes();
   panes.forEach(pane => clearMultiColumnFromPane(pane as HTMLElement));
 };
@@ -61,15 +61,14 @@ const syncMultiColumnToggleUI = (pane: HTMLElement): void => {
 export const toggleMultiColumnForPane = (pane: HTMLElement): void => {
   const pageId = getPaneIdFromPane(pane);
   if (!pageId) return;
-  const alreadyTrackedIndex = globalState.multiColumnPageIds.indexOf(pageId);
-  if (alreadyTrackedIndex !== -1) {
-    globalState.multiColumnPageIds.splice(alreadyTrackedIndex, 1);
+  if (globalState.multiColumnPageIds.has(pageId)) {
+    globalState.multiColumnPageIds.delete(pageId);
     clearMultiColumnFromPane(pane);
     syncMultiColumnToggleUI(pane);
 
     return;
   }
-  globalState.multiColumnPageIds.push(pageId);
+  globalState.multiColumnPageIds.add(pageId);
   updateMultiColumnForPane(pane);
   syncMultiColumnToggleUI(pane);
 };
@@ -95,7 +94,7 @@ export const isPaneTrackedForMultiColumn = (
   pane: HTMLElement
 ): { tracked: boolean; pageId: string | null } => {
   const pageId = getPaneIdFromPane(pane);
-  const tracked = pageId ? globalState.multiColumnPageIds.includes(pageId) : false;
+  const tracked = pageId ? globalState.multiColumnPageIds.has(pageId) : false;
 
   return { tracked, pageId };
 };

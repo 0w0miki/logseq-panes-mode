@@ -6,7 +6,7 @@ import type { PendingShiftClick } from '../features/panes/shiftActions/types';
 export type GlobalState = {
   isPanesModeModeActive: boolean;
   virtuosoScrollElement: HTMLElement | null;
-  multiColumnPageIds: string[];
+  multiColumnPageIds: Set<string>;
   currentActivePaneIndex: number | null;
   tabsVisible: boolean;
   keyboardEventHandler: ((e: KeyboardEvent) => void) | null;
@@ -33,7 +33,7 @@ export type GlobalState = {
 export const globalState: GlobalState = {
   isPanesModeModeActive: false,
   virtuosoScrollElement: null,
-  multiColumnPageIds: [],
+  multiColumnPageIds: new Set(),
   currentActivePaneIndex: 0,
   tabsVisible: true,
   keyboardEventHandler: null,
@@ -64,7 +64,7 @@ export const isActivePaneIndexValid = (panes: Element[] = globalState.cachedPane
 
 export const resetState = (): void => {
   globalState.virtuosoScrollElement = null;
-  globalState.multiColumnPageIds = [];
+  globalState.multiColumnPageIds = new Set();
   globalState.currentActivePaneIndex = 0;
   globalState.tabsVisible = true;
   globalState.keyboardEventHandler = null;
