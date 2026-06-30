@@ -50,6 +50,14 @@ export const resetMultiColumnLayout = (): void => {
   panes.forEach(pane => clearMultiColumnFromPane(pane as HTMLElement));
 };
 
+const syncMultiColumnToggleUI = (pane: HTMLElement): void => {
+  const { tracked } = isPaneTrackedForMultiColumn(pane);
+  const toggleButton = pane.querySelector('.panesMode-multicol-toggle') as HTMLButtonElement | null;
+  if (toggleButton) {
+    toggleButton.style.display = tracked ? '' : 'none';
+  }
+};
+
 export const toggleMultiColumnForPane = (pane: HTMLElement): void => {
   const pageId = getPaneIdFromPane(pane);
   if (!pageId) return;
@@ -57,11 +65,13 @@ export const toggleMultiColumnForPane = (pane: HTMLElement): void => {
   if (alreadyTrackedIndex !== -1) {
     globalState.multiColumnPageIds.splice(alreadyTrackedIndex, 1);
     clearMultiColumnFromPane(pane);
+    syncMultiColumnToggleUI(pane);
 
     return;
   }
   globalState.multiColumnPageIds.push(pageId);
   updateMultiColumnForPane(pane);
+  syncMultiColumnToggleUI(pane);
 };
 
 const findBulletContainer = (pane: HTMLElement): HTMLElement | null => {
@@ -81,7 +91,7 @@ const clearMultiColumnFromPane = (pane: HTMLElement): void => {
   container.style.removeProperty('--panesMode-column-gap');
 };
 
-const isPaneTrackedForMultiColumn = (
+export const isPaneTrackedForMultiColumn = (
   pane: HTMLElement
 ): { tracked: boolean; pageId: string | null } => {
   const pageId = getPaneIdFromPane(pane);

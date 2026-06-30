@@ -228,7 +228,8 @@ body.panesMode-active.panesMode-native-right-window-controls
 
 body.panesMode-active {
   .panesMode-collapse-orientation-toggle,
-  .panesMode-fit-content-toggle {
+  .panesMode-fit-content-toggle,
+  .panesMode-multicol-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -250,6 +251,9 @@ body.panesMode-active {
     font-size: 15px;
     font-weight: 400;
     color: #636363;
+  }
+  .panesMode-multicol-toggle {
+    font-size: 20px;
   }
 
   .panesMode-collapse-orientation-toggle:hover {

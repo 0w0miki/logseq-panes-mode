@@ -13,6 +13,7 @@ import { setActivePaneByIndex } from './paneNavigation';
 import { globalState } from '../../core/pluginGlobalState';
 import { debounce } from '../../core/utils';
 import { updateTabs } from '../tabs/tabs';
+import { toggleMultiColumnForPane } from './paneMultiColumn';
 import type { CollapseOrientation, CollapsiblePane, FitContentToggleOptions } from './types';
 
 const isFitContentEnabled = (pane: HTMLElement): boolean =>
@@ -391,6 +392,46 @@ const ensureCollapseOrientationToggle = (
   toggleButton.addEventListener('click', newClickHandler);
 };
 
+const ensureMultiColumnToggle = (pane: CollapsiblePane): void => {
+  let container = pane.querySelector('.item-actions') as HTMLElement | null;
+  if (!container) {
+    container = pane.querySelector('.sidebar-item-header') as HTMLElement | null;
+  }
+  if (!container) return;
+
+  const doc = pane.ownerDocument;
+
+  let toggleButton = pane.querySelector(
+    '.panesMode-multicol-toggle'
+  ) as HTMLButtonElement | null;
+
+  if (!toggleButton) {
+    toggleButton = doc.createElement('button');
+    toggleButton.type = 'button';
+    toggleButton.className = 'panesMode-multicol-toggle';
+    toggleButton.title = 'Toggle multi-column';
+    toggleButton.textContent = '◫';
+    container.insertBefore(toggleButton, container.firstChild);
+  }
+
+  const pageId = getPaneIdFromPane(pane);
+  const tracked = pageId ? globalState.multiColumnPageIds.includes(pageId) : false;
+  toggleButton.style.display = tracked ? '' : 'none';
+
+  const newClickHandler = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!globalState.isPanesModeModeActive) return;
+    toggleMultiColumnForPane(pane);
+  };
+
+  if ((toggleButton as any)._clickHandler) {
+    toggleButton.removeEventListener('click', (toggleButton as any)._clickHandler);
+  }
+  (toggleButton as any)._clickHandler = newClickHandler;
+  toggleButton.addEventListener('click', newClickHandler);
+};
+
 const syncCollapseOrientation = (
   paneElement: CollapsiblePane,
   isCollapsed: boolean
@@ -446,6 +487,7 @@ export const observePaneCollapseState = (pane: Element): void => {
   const initiallyCollapsed = paneElement.classList.contains('collapsed');
   ensureFitContentToggle(paneElement, initiallyCollapsed);
   ensureCollapseOrientationToggle(paneElement, initiallyCollapsed, initialOrientation);
+  ensureMultiColumnToggle(paneElement);
   paneElement._prevCollapsed = initiallyCollapsed;
 
   const observer = new MutationObserver(mutations => {
@@ -456,6 +498,7 @@ export const observePaneCollapseState = (pane: Element): void => {
         const wasCollapsed = paneElement._prevCollapsed ?? isCollapsed;
         ensureFitContentToggle(paneElement, isCollapsed);
         syncCollapseOrientation(paneElement, isCollapsed);
+        ensureMultiColumnToggle(paneElement);
         if (isCollapsed !== wasCollapsed) {
           updateTabs(globalState.cachedPanes);
           const paneIndex = globalState.cachedPanes.indexOf(paneElement);
