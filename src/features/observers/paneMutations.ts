@@ -415,7 +415,16 @@ export const createPanesMutationObserver = (resizeObserver: ResizeObserver): Mut
       const closedPaneIndex = globalState.cachedPanes.indexOf(nativelyClosedPane);
       const activeIndex = globalState.currentActivePaneIndex;
 
-      if (activeIndex !== null && currentSidebarPanes.length > 0) {
+      if (currentSidebarPanes.length === 0) {
+        logseq.App.setRightSidebarVisible(false);
+        globalState.currentActivePaneIndex = null;
+        refreshPanesElementsCache([]);
+        updateTabs([]);
+
+        return;
+      }
+
+      if (activeIndex !== null) {
         if (closedPaneIndex === activeIndex) {
           const newFocusIndex =
             closedPaneIndex >= currentSidebarPanes.length

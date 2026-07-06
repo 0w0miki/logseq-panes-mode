@@ -1,7 +1,6 @@
 import { getPaneCloseButton, getPaneIdFromPane } from '../../core/domUtils';
 import { isActivePaneIndexValid, globalState } from '../../core/pluginGlobalState';
 import { readLastActivePanesFromStorage } from '../../core/storage';
-import { EXPECTED_MUTATIONS } from '../observers/types';
 import { getCurrentSidebarPanes, refreshPanesElementsCache } from './paneCache';
 import {
   applyPaneDimensions,
@@ -50,72 +49,25 @@ export const togglePaneCollapse = (index: number, updateTabs: (panes?: Element[]
   }, 0.15);
 };
 
-export const closePaneByIndex = (paneIndex: number, updateTabs: (panes?: Element[]) => void) => {
-  const { panes: currentPanes } = getResolvedCurrentPaneState();
-  const isOnlyPane = currentPanes.length === 1;
-  const pane = currentPanes[paneIndex];
+export const closePaneByIndex = (paneIndex: number, _updateTabs: (panes?: Element[]) => void) => {
+  const pane = globalState.cachedPanes[paneIndex];
   if (!pane) return;
   const closeButton = getPaneCloseButton(pane);
   if (!closeButton) return;
 
   cleanupPaneListeners(pane);
-  globalState.expectedMutations.push(EXPECTED_MUTATIONS.paneClosing);
   closeButton.click();
-  void waitForDomChanges().then(() => {
-    if (isOnlyPane) {
-      handleLastPaneClose(updateTabs);
-
-      return;
-    }
-
-    const updatedPanes = getCurrentSidebarPanes();
-    refreshPanesElementsCache(updatedPanes);
-    if (updatedPanes.length === 0) {
-      globalState.currentActivePaneIndex = null;
-      updateTabs(updatedPanes);
-
-      return;
-    }
-
-    setNextActivePaneAfterClose(paneIndex, updatedPanes);
-    updateTabs(updatedPanes);
-  });
 };
 
 export const closePaneByIndexes = (
   paneIndexes: number[],
   updateTabs: (panes?: Element[]) => void
 ) => {
-  const sortedIndexes = [...paneIndexes].sort((a, b) => a - b);
-  const {
-    panes: currentPanes,
-    activeIndex: currentPaneIndex,
-    activePane: currentPane,
-  } = getResolvedCurrentPaneState();
+  const currentPanes = getCurrentSidebarPanes();
   const panesToClose = buildPendingPaneCloseTargets(paneIndexes, currentPanes);
   if (panesToClose.length === 0) return;
 
-  void closePaneTargetsSequentially(panesToClose).then(closedCount => {
-    if (closedCount === 0) return;
-
-    const updatedPanes = getCurrentSidebarPanes();
-    refreshPanesElementsCache(updatedPanes);
-    if (updatedPanes.length === 0) {
-      globalState.currentActivePaneIndex = null;
-      updateTabs(updatedPanes);
-
-      return;
-    }
-
-    const paneIndexToSelect = resolveBatchCloseActiveIndex(
-      sortedIndexes,
-      currentPaneIndex,
-      currentPane,
-      updatedPanes
-    );
-    setActivePaneByIndex(paneIndexToSelect, updatedPanes);
-    updateTabs(updatedPanes);
-  });
+  void closePaneTargetsSequentially(panesToClose);
 };
 
 export const cleanLeftPanes = (updateTabs: (panes?: Element[]) => void) => {
@@ -174,46 +126,6 @@ export const cleanUnusedPanes = (updateTabs: (panes?: Element[]) => void) => {
 const cleanupPaneListeners = (pane: Element): void => {
   removeScrollListenerFromPane(pane);
   disconnectPaneCollapseObserver(pane);
-};
-
-const handleLastPaneClose = (updateTabs: (panes?: Element[]) => void) => {
-  logseq.App.setRightSidebarVisible(false);
-  globalState.currentActivePaneIndex = null;
-  refreshPanesElementsCache([]);
-  updateTabs([]);
-};
-
-const setNextActivePaneAfterClose = (paneIndex: number, updatedPanes: Element[]) => {
-  const wasActive = paneIndex === globalState.currentActivePaneIndex;
-  let nextActiveIndex =
-    globalState.currentActivePaneIndex === null ? 0 : globalState.currentActivePaneIndex;
-  if (wasActive) {
-    nextActiveIndex = Math.min(paneIndex, updatedPanes.length - 1);
-  } else if (paneIndex < nextActiveIndex) {
-    nextActiveIndex = Math.max(0, nextActiveIndex - 1);
-  }
-
-  setActivePaneByIndex(nextActiveIndex, updatedPanes);
-};
-
-const resolveBatchCloseActiveIndex = (
-  sortedIndexes: number[],
-  currentPaneIndex: number | null,
-  currentPane: Element | null,
-  updatedPanes: Element[]
-): number => {
-  const updatedActivePaneIndex = currentPane ? updatedPanes.indexOf(currentPane) : -1;
-  const panesClosedBeforeActive =
-    currentPaneIndex !== null
-      ? sortedIndexes.filter(index => index < (currentPaneIndex as number)).length
-      : 0;
-  let paneIndexToSelect =
-    updatedActivePaneIndex === -1
-      ? Math.max(0, (currentPaneIndex ?? 0) - panesClosedBeforeActive)
-      : updatedActivePaneIndex;
-  paneIndexToSelect = Math.min(paneIndexToSelect, updatedPanes.length - 1);
-
-  return paneIndexToSelect;
 };
 
 const cleanPanesByDirection = (
@@ -285,7 +197,6 @@ const closePaneTargetsSequentially = async (targets: PendingPaneCloseTarget[]): 
     if (!closeButton) continue;
 
     cleanupPaneListeners(pane);
-    globalState.expectedMutations.push(EXPECTED_MUTATIONS.paneClosingBatch);
     closeButton.click();
     closedCount++;
 

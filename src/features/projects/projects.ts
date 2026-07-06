@@ -541,7 +541,6 @@ const closePaneByIndexAsync = (paneIndex: number): Promise<void> => {
 
       return;
     }
-    globalState.expectedMutations.push(EXPECTED_MUTATIONS.paneClosing);
     closeButton.click();
     void waitForDomChanges(() => resolve(), 0.1);
   });
