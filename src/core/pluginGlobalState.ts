@@ -21,7 +21,6 @@ export type GlobalState = {
   expectedMutations: ExpectedMutation[];
   pendingShiftClick: PendingShiftClick | null;
   lastPanesMutationAt: number;
-  lastShiftClickHandledAt: number;
   isMacDesktop: boolean;
   isWindows: boolean;
   isLinux: boolean;
@@ -48,7 +47,6 @@ export const globalState: GlobalState = {
   expectedMutations: [],
   pendingShiftClick: null,
   lastPanesMutationAt: 0,
-  lastShiftClickHandledAt: 0,
   isMacDesktop: /Mac/.test(navigator.platform),
   isWindows: /Win/.test(navigator.platform),
   isLinux: /Linux/.test(navigator.platform),
@@ -77,7 +75,6 @@ export const resetState = (): void => {
   globalState.expectedMutations = [];
   globalState.pendingShiftClick = null;
   globalState.lastPanesMutationAt = 0;
-  globalState.lastShiftClickHandledAt = 0;
   globalState.isProjectsModalVisible = false;
   globalState.projectsSelectedIndex = 0;
   globalState.projectsFilteredList = [];

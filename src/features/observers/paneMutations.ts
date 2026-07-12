@@ -31,7 +31,6 @@ import { EXPECTED_MUTATIONS } from './types';
 import { getPluginSettings } from '../../core/pluginSettings';
 
 const SHIFT_CLICK_TIMEOUT_MS = 2000;
-const SHIFT_CLICK_NATIVE_IGNORE_MS = 800;
 const PANE_SYNC_INTERVAL_MS = 100;
 const SHIFT_CLICK_WATCHER_INTERVAL_MS = 50;
 const TAB_SELECTOR = '.panesMode-tab';
@@ -215,81 +214,159 @@ const restoreCachedPaneOrder = (container: HTMLElement): void => {
   updatePanesOrderInStorage(getCurrentSidebarPanes(container));
 };
 
-const isLogseqReorderingMutation = (mutations: MutationRecord[]) => {
-  const addedPanes: HTMLElement[] = [];
+// --- Pane diffing ---
 
-  mutations.forEach(mutation => {
-    if (mutation.type !== 'childList') return;
-
-    mutation.addedNodes.forEach((node: HTMLElement) => {
-      debugLog('Added node in mutation:', node);
-      if (node.classList?.contains('sidebar-item')) {
-        addedPanes.push(node);
-      }
-    });
-  });
-
-  if (addedPanes.length === 0) return false;
-
-  const isReorderingMutation = addedPanes.every(pane => globalState.cachedPanes.includes(pane));
-
-  return isReorderingMutation;
+type PaneDiff = {
+  newPanes: Set<Element>;
+  closedPanes: Set<Element>;
+  reorderedPanes: Set<Element>;
 };
 
-const checkIfNativeCloseMutation = (
-  mutations: MutationRecord[],
-  currentSidebarPanes: Element[]
-): Element | null => {
-  const panesCountDiff = globalState.cachedPanes.length - currentSidebarPanes.length;
-  if (panesCountDiff !== 1) return null;
+const diffPanes = (cached: Element[], current: Element[]): PaneDiff => {
+  const newPanes = new Set(current.filter(p => !cached.includes(p)));
+  const closedPanes = new Set(cached.filter(p => !current.includes(p)));
+  const reorderedPanes = new Set(
+    cached.filter(p => current.includes(p) && current.indexOf(p) !== cached.indexOf(p))
+  );
 
-  let removedPaneIndex = -1;
-  let currentIndex = 0;
-  for (let cachedIndex = 0; cachedIndex < globalState.cachedPanes.length; cachedIndex++) {
-    const cachedPane = globalState.cachedPanes[cachedIndex];
-    if (
-      currentIndex < currentSidebarPanes.length &&
-      currentSidebarPanes[currentIndex] === cachedPane
-    ) {
-      currentIndex++;
-    } else if (removedPaneIndex === -1) {
-      removedPaneIndex = cachedIndex;
-    } else {
-      return null;
+  if (closedPanes.size > 0 || newPanes.size > 0 || reorderedPanes.size > 0) {
+    debugLog('[PanesMode] diffPanes:', {
+      cacheCount: cached.length,
+      currentCount: current.length,
+      newCount: newPanes.size,
+      closedCount: closedPanes.size,
+      reorderedCount: reorderedPanes.size,
+    });
+  }
+
+  return { newPanes, closedPanes, reorderedPanes };
+};
+
+// --- Pane change handlers ---
+
+const handleClose = (closedPanes: Set<Element>, currentPanes: Element[]): boolean => {
+  debugLog('[PanesMode] handleClose:', { closedCount: closedPanes.size, remainingCount: currentPanes.length });
+
+  if (currentPanes.length === 0) {
+    debugLog('[PanesMode] handleClose: last pane closed, hiding sidebar');
+    logseq.App.setRightSidebarVisible(false);
+    globalState.currentActivePaneIndex = null;
+    refreshPanesElementsCache([]);
+    updateTabs([]);
+
+    return true;
+  }
+
+  const activeIndex = globalState.currentActivePaneIndex;
+  // Process closes in reverse order so earlier index adjustments don't affect later ones
+  const sortedIndices = [...closedPanes]
+    .map(p => globalState.cachedPanes.indexOf(p))
+    .filter(i => i !== -1)
+    .sort((a, b) => b - a);
+
+  let adjustedActiveIndex = activeIndex;
+
+  for (const closedPaneIndex of sortedIndices) {
+    if (adjustedActiveIndex !== null) {
+      if (closedPaneIndex === adjustedActiveIndex) {
+        adjustedActiveIndex = Math.min(closedPaneIndex, currentPanes.length - 1);
+      } else if (closedPaneIndex < adjustedActiveIndex) {
+        adjustedActiveIndex = Math.max(0, adjustedActiveIndex - 1);
+      }
     }
   }
 
-  if (removedPaneIndex === -1 && currentIndex === currentSidebarPanes.length) {
-    removedPaneIndex = globalState.cachedPanes.length - 1;
+  debugLog('[PanesMode] handleClose: activeIndex', { before: activeIndex, after: adjustedActiveIndex });
+  if (adjustedActiveIndex !== null && adjustedActiveIndex >= 0) {
+    setActivePaneByIndex(adjustedActiveIndex, currentPanes);
   }
+  globalState.cachedPanes = globalState.cachedPanes.filter(p => !closedPanes.has(p));
 
-  if (currentIndex !== currentSidebarPanes.length || removedPaneIndex === -1) {
-    return null;
-  }
-
-  let removedPane: Element | null = null;
-  let addedNodesCount = 0;
-
-  mutations.forEach(mutation => {
-    if (mutation.type !== 'childList') return;
-    addedNodesCount += mutation.addedNodes.length;
-    mutation.removedNodes.forEach((node: any) => {
-      if (node.classList?.contains('sidebar-item')) {
-        removedPane = node;
-      }
-    });
-  });
-
-  const isValidMutationCount = mutations.length >= 1 && mutations.length <= 2;
-  const hasNoAddedNodes = addedNodesCount === 0;
-  const hasOneRemovedPane = removedPane !== null;
-
-  if (isValidMutationCount && hasNoAddedNodes && hasOneRemovedPane) {
-    return removedPane;
-  }
-
-  return null;
+  return false;
 };
+
+const handleNewPanes = (
+  newPanes: Set<Element>,
+  currentPanes: Element[],
+  resizeObserver: ResizeObserver
+): void => {
+  const pluginSettings = getPluginSettings();
+  const container = getScrollablePanesContainer();
+  if (!container) return;
+
+  const cachedPageIds = new Set(
+    globalState.cachedPanes.map(p => getPaneIdFromPane(p)).filter(Boolean)
+  );
+
+  // Separate reopened panes (same pageId) from genuinely new ones
+  const reopenedPanes: Element[] = [];
+  const genuinelyNewPanes: Element[] = [];
+
+  for (const pane of newPanes) {
+    const pageId = getPaneIdFromPane(pane);
+    if (pageId && cachedPageIds.has(pageId)) {
+      reopenedPanes.push(pane);
+    } else {
+      genuinelyNewPanes.push(pane);
+    }
+  }
+
+  // Handle reopened panes — reorder next to active
+  for (const pane of reopenedPanes) {
+    const activePane = getActivePaneElement(currentPanes);
+    const updated = reorderPaneNextToActive(pane, activePane ?? currentPanes[0], container);
+    if (updated) {
+      updatePanesOrderInStorage(updated);
+      updateTabs(updated);
+      ensurePaneOrderAndTabsSync(updated);
+    }
+  }
+
+  if (genuinelyNewPanes.length === 0) {
+    refreshPanesElementsCache();
+    return;
+  }
+
+  if (pluginSettings.autoCloseOldestTab) {
+    enforceMaxTabsLimit();
+  }
+
+  globalState.expectedMutations.push(EXPECTED_MUTATIONS.newSidebarItemsReordering);
+
+  for (const newPane of genuinelyNewPanes) {
+    observePaneForResize(resizeObserver, newPane);
+    enableFitContentForNewPane(newPane);
+    applyPaneDimensions(newPane as HTMLElement);
+
+    const activePane = getActivePaneElement(currentPanes);
+    const activePos = activePane ? currentPanes.indexOf(activePane) : -1;
+
+    if (globalState.alwaysOpenPanesAtBegining) {
+      container.insertBefore(newPane, container.firstChild);
+    } else if (activePos !== -1) {
+      container.insertBefore(newPane, currentPanes[activePos + 1] ?? null);
+    }
+  }
+
+  const updatedPanes = getCurrentSidebarPanes(container);
+  const lastNewPane = genuinelyNewPanes[genuinelyNewPanes.length - 1];
+  const newPaneIndex = updatedPanes.indexOf(lastNewPane);
+  if (newPaneIndex !== -1) {
+    setActivePaneByIndex(newPaneIndex, updatedPanes, true);
+  }
+
+  notifyVirtuosoScroll();
+};
+
+const finalize = (currentPanes: Element[]): void => {
+  debugLog('[PanesMode] finalize:', { panesCount: currentPanes.length });
+  updatePanesOrderInStorage(currentPanes);
+  updateTabs(currentPanes);
+  ensurePaneOrderAndTabsSync(currentPanes);
+  refreshPanesElementsCache();
+};
+
+// --- Shift click ---
 
 const getFreshPendingShiftClick = (): PendingShiftClick | null => {
   const pending = globalState.pendingShiftClick;
@@ -342,63 +419,23 @@ const handleShiftClickPaneOpen = (
   updateTabs(updatedPanes);
   ensurePaneOrderAndTabsSync(updatedPanes);
   notifyVirtuosoScroll();
-  globalState.lastShiftClickHandledAt = Date.now();
   globalState.pendingShiftClick = null;
 
   return true;
 };
 
-const handleNativeReopenExistingPane = (reorderedPaneIndex: number): boolean => {
-  if (globalState.currentActivePaneIndex === null) return false;
-  const container = getScrollablePanesContainer();
-  if (!container) return false;
-  const reorderedPane = globalState.cachedPanes[reorderedPaneIndex] as HTMLElement | undefined;
-  if (!reorderedPane) return false;
-  const activePane = globalState.cachedPanes[globalState.currentActivePaneIndex];
-  if (!activePane) return false;
-  if (activePane === reorderedPane) return false;
+// --- Main observer ---
 
-  const updatedPanes = reorderPaneNextToActive(reorderedPane, activePane, container);
-  if (!updatedPanes) return false;
-
-  const indexToFocus = updatedPanes.indexOf(reorderedPane);
-  if (indexToFocus !== -1) {
-    setActivePaneByIndex(indexToFocus, updatedPanes);
-  }
-  updatePanesOrderInStorage(updatedPanes);
-  updateTabs(updatedPanes);
-  ensurePaneOrderAndTabsSync(updatedPanes);
-  notifyVirtuosoScroll();
-
-  return true;
-};
-
-// One day i will refactor it, but not today
 export const createPanesMutationObserver = (resizeObserver: ResizeObserver): MutationObserver => {
   moduleResizeObserver = resizeObserver;
-  const panesContainerMutationsObserver = new MutationObserver(mutations => {
-    debugLog('Panes mutations detected:', mutations);
+
+  return new MutationObserver(() => {
     globalState.lastPanesMutationAt = Date.now();
-    const pluginSettings = getPluginSettings();
 
-    debugLog('Cached panes before mutation handling:', globalState.cachedPanes);
     const currentSidebarPanes = getCurrentSidebarPanes();
-    debugLog('Current sidebar panes start of mutation handling:', currentSidebarPanes);
-    debugLog('Global state before mutation handling:', globalState);
+    const { newPanes, closedPanes, reorderedPanes } = diffPanes(globalState.cachedPanes, currentSidebarPanes);
 
-    const hasSidebarPanesChanged =
-      currentSidebarPanes.length !== globalState.cachedPanes.length ||
-      currentSidebarPanes.some((pane, index) => pane !== globalState.cachedPanes[index]);
-
-    const isNativeReorderingMutation = isLogseqReorderingMutation(mutations);
-    const nativelyClosedPane = hasSidebarPanesChanged
-      ? checkIfNativeCloseMutation(mutations, currentSidebarPanes)
-      : null;
-
-    if (hasSidebarPanesChanged) {
-      updatePanesOrderInStorage(currentSidebarPanes);
-    }
-    debugLog(globalState.expectedMutations, 'Expected mutations at start of mutation handling');
+    // Expected mutations: plugin-initiated DOM change, skip and let plugin handle it
     if (globalState.expectedMutations.length > 0) {
       const expectedMutation = globalState.expectedMutations.shift();
       debugLog('Expected mutation detected:', expectedMutation);
@@ -411,172 +448,49 @@ export const createPanesMutationObserver = (resizeObserver: ResizeObserver): Mut
       return;
     }
 
-    if (nativelyClosedPane) {
-      const closedPaneIndex = globalState.cachedPanes.indexOf(nativelyClosedPane);
-      const activeIndex = globalState.currentActivePaneIndex;
+    // Nothing changed
+    if (newPanes.size === 0 && closedPanes.size === 0 && reorderedPanes.size === 0) {
+      debugLog('[PanesMode] observer: no diff, skipping');
+      return;
+    }
 
-      if (currentSidebarPanes.length === 0) {
-        logseq.App.setRightSidebarVisible(false);
-        globalState.currentActivePaneIndex = null;
-        refreshPanesElementsCache([]);
-        updateTabs([]);
+    // Pane(s) closed (returns true if all panes gone, sidebar hidden)
+    let lastPaneClosed = false;
+    if (closedPanes.size > 0) {
+      lastPaneClosed = handleClose(closedPanes, currentSidebarPanes);
+    }
 
-        return;
-      }
-
-      if (activeIndex !== null) {
-        if (closedPaneIndex === activeIndex) {
-          const newFocusIndex =
-            closedPaneIndex >= currentSidebarPanes.length
-              ? currentSidebarPanes.length - 1
-              : closedPaneIndex;
-          setActivePaneByIndex(newFocusIndex, currentSidebarPanes);
-        } else {
-          const adjustedIndex = activeIndex > closedPaneIndex ? activeIndex - 1 : activeIndex;
-          setActivePaneByIndex(adjustedIndex, currentSidebarPanes);
-        }
-      }
-      ensurePaneOrderAndTabsSync(currentSidebarPanes);
-      updateTabs(currentSidebarPanes);
-      refreshPanesElementsCache(currentSidebarPanes);
-
+    // Shift+click pending — handles its own reorder/post-processing
+    if (lastPaneClosed) {
       return;
     }
 
     const pendingShiftClick = getFreshPendingShiftClick();
     if (pendingShiftClick) {
-      const handledShiftClick = handleShiftClickPaneOpen(
-        pendingShiftClick,
-        currentSidebarPanes,
-        resizeObserver
-      );
-      if (handledShiftClick) {
-        // handleShiftClickPaneOpen already called ensurePaneOrderAndTabsSync
-        // with the correct reordered panes — do NOT call it again with the
-        // stale currentSidebarPanes snapshot, as that would overwrite the
-        // sync target and reverse the reorder on the next interval tick.
-        refreshPanesElementsCache();
+      debugLog('[PanesMode] has shift click:');
+      const handled = handleShiftClickPaneOpen(pendingShiftClick, currentSidebarPanes, resizeObserver);
+      if (handled) {
         stopShiftClickPaneWatcher();
-
+        finalize(currentSidebarPanes);
         return;
       }
     }
 
-    if (isNativeReorderingMutation) {
-      const timeSinceShiftClick = Date.now() - globalState.lastShiftClickHandledAt;
-      if (
-        globalState.lastShiftClickHandledAt &&
-        timeSinceShiftClick < SHIFT_CLICK_NATIVE_IGNORE_MS
-      ) {
-        const container = getScrollablePanesContainer();
-        if (container) {
-          debugLog('Ignoring native reordering after shift click');
-          restoreCachedPaneOrder(container);
-          ensurePaneOrderAndTabsSync(getCurrentSidebarPanes(container));
-        }
-        refreshPanesElementsCache();
-
-        return;
-      }
-      debugLog('mutations', mutations);
-      const reorderedPane = mutations
-        .flatMap(mutation => Array.from(mutation.addedNodes))
-        .find(node => {
-          const el = node as HTMLElement | null;
-
-          return Boolean(
-            el?.classList?.contains('sidebar-item') && globalState.cachedPanes.includes(el)
-          );
-        }) as HTMLElement | undefined;
-
-      debugLog('reorderedPane', reorderedPane);
-      const reorderedPaneIndex = globalState.cachedPanes.indexOf(reorderedPane);
-
-      const handled = handleNativeReopenExistingPane(reorderedPaneIndex);
-      if (!handled) {
-        const container = getScrollablePanesContainer();
-        if (container) {
-          restoreCachedPaneOrder(container);
-          const restoredPanes = getCurrentSidebarPanes(container);
-          updateTabs(restoredPanes);
-          ensurePaneOrderAndTabsSync(restoredPanes);
-        }
-      }
-      refreshPanesElementsCache();
-
-      return;
+    // New pane(s) opened
+    if (newPanes.size > 0) {
+      handleNewPanes(newPanes, currentSidebarPanes, resizeObserver);
     }
 
-    const unwantedLogseqRearrangements: Element[] = [];
-    let didPushExpectedMutationForNewPane = false;
-
-    mutations.forEach(mutation => {
-      mutation.addedNodes.forEach(node => {
-        const addedNode = node as Element;
-        if (addedNode.classList && addedNode.classList.contains('sidebar-item')) {
-          const addedPane = addedNode as HTMLElement;
-          if (globalState.cachedPanes.includes(addedPane)) {
-            unwantedLogseqRearrangements.push(addedPane);
-
-            return;
-          }
-          const newPaneId = getPaneIdFromPane(addedPane);
-
-          if (pluginSettings.autoCloseOldestTab) {
-            const isReopenedPane = Boolean(
-              newPaneId &&
-              globalState.cachedPanes.some(pane => getPaneIdFromPane(pane) === newPaneId)
-            );
-            if (isReopenedPane) return;
-
-            enforceMaxTabsLimit(newPaneId || undefined);
-          }
-
-          if (!didPushExpectedMutationForNewPane) {
-            globalState.expectedMutations.push(EXPECTED_MUTATIONS.newSidebarItemsReordering);
-            didPushExpectedMutationForNewPane = true;
-          }
-          const panesContainer = getScrollablePanesContainer();
-          if (!panesContainer) return;
-          const sidebarPanesAfterAddedNode = getCurrentSidebarPanes(panesContainer);
-
-          const activePane = getActivePaneElement(sidebarPanesAfterAddedNode);
-          const activePaneNewPosition = activePane
-            ? sidebarPanesAfterAddedNode.indexOf(activePane)
-            : -1;
-          observePaneForResize(resizeObserver, addedPane);
-          enableFitContentForNewPane(addedPane);
-          applyPaneDimensions(addedPane);
-          if (globalState.alwaysOpenPanesAtBegining) {
-            panesContainer.insertBefore(addedPane, panesContainer.firstChild);
-          } else if (activePaneNewPosition !== -1) {
-            panesContainer.insertBefore(
-              addedPane,
-              sidebarPanesAfterAddedNode[activePaneNewPosition + 1]
-            );
-          }
-          const updatedPanes = getCurrentSidebarPanes(panesContainer);
-          const newPaneIndex = updatedPanes.indexOf(addedPane);
-          setActivePaneByIndex(newPaneIndex, updatedPanes, true);
-          updatePanesOrderInStorage(updatedPanes);
-          updateTabs(updatedPanes);
-          ensurePaneOrderAndTabsSync(updatedPanes);
-          notifyVirtuosoScroll();
-        }
-      });
-    });
-
-    if (unwantedLogseqRearrangements.length > 0) {
-      const container = getScrollablePanesContainer();
-      if (container) {
-        restoreCachedPaneOrder(container);
+    // Reorder — restore to cached order
+    if (reorderedPanes.size > 0) {
+      const reorderContainer = getScrollablePanesContainer();
+      if (reorderContainer) {
+        restoreCachedPaneOrder(reorderContainer);
       }
     }
 
-    refreshPanesElementsCache();
+    finalize(currentSidebarPanes);
   });
-
-  return panesContainerMutationsObserver;
 };
 
 export const startPanesMutationObserver = (observer: MutationObserver): void => {

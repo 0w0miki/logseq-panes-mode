@@ -756,7 +756,6 @@ const finalizePaneReorder = (
   updatePanesOrderInStorage(updatedPanes);
   updateTabs(updatedPanes);
   notifyVirtuosoScroll();
-  globalState.lastShiftClickHandledAt = Date.now();
   globalState.pendingShiftClick = null;
 };
 
