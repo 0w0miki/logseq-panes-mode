@@ -10,12 +10,16 @@ import type { PendingShiftClick } from './types';
 import { waitForDomChanges } from '../../../core/utils';
 import { getCurrentSidebarPanes } from '../paneCache';
 import { setActivePaneByIndex } from '../paneNavigation';
-
+import { notifyVirtuosoScroll } from '../paneLayout';
+import { updateTabs } from '../../tabs/tabs';
+import { updatePanesOrderInStorage } from '../panePersistence';
 import {
   startShiftClickPaneWatcher,
   stopShiftClickPaneWatcher,
 } from '../../observers/paneMutations';
 import {
+  reorderPaneNextToActive,
+  resolveActivePaneFromPending,
   resolveShiftClickTargetPane,
 } from './paneShiftReorder';
 
@@ -709,7 +713,7 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
     shiftTarget: ShiftClickTarget,
     activePaneContext: ActivePaneContext = getActivePaneContext(target)
   ): void => {
-    globalState.pendingShiftClick = {
+    const pending: PendingShiftClick = {
       targetType: shiftTarget.type,
       targetId: shiftTarget.id,
       targetCandidates: shiftTarget.candidates ?? [shiftTarget.id],
@@ -718,7 +722,33 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
       activePaneId: activePaneContext.activePaneId,
       activePaneIndex: activePaneContext.activePaneIndex,
     };
-    debugLog(DEBUG_PREFIX, 'pending set', globalState.pendingShiftClick);
+    debugLog(DEBUG_PREFIX, 'pending set', pending);
+
+    // Target already open — reorder inline, no need for mutation observer
+    const existingPane = resolveShiftClickTargetPane(pending, globalState.cachedPanes);
+    if (existingPane && globalState.cachedPanes.includes(existingPane)) {
+      debugLog(DEBUG_PREFIX, 'existing pane matched, reorder inline', {
+        paneId: getPaneIdFromPane(existingPane),
+        activePaneId: pending.activePaneId,
+        activePaneIndex: pending.activePaneIndex,
+      });
+      const container = getScrollablePanesContainer();
+      if (container) {
+        const activePane = resolveActivePaneFromPending(pending, globalState.cachedPanes);
+        const reordered = reorderPaneNextToActive(existingPane, activePane, container);
+        if (reordered) {
+          const idx = reordered.indexOf(existingPane);
+          if (idx !== -1) setActivePaneByIndex(idx, reordered);
+          updatePanesOrderInStorage(reordered);
+          updateTabs(reordered);
+          notifyVirtuosoScroll();
+          debugLog(DEBUG_PREFIX, 'inline reorder done', { newIndex: idx });
+        }
+      }
+      return;
+    }
+
+    globalState.pendingShiftClick = pending;
     startShiftClickPaneWatcher();
   };
 
