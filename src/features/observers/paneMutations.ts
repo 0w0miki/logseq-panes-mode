@@ -22,7 +22,6 @@ import {
 import { updatePanesOrderInStorage } from '../panes/panePersistence';
 import {
   getActivePaneElement,
-  getNewPaneCandidate,
   reorderPaneNextToActive,
   resolveActivePaneFromPending,
   resolveShiftClickTargetPane,
@@ -62,70 +61,26 @@ export const startShiftClickPaneWatcher = (): void => {
   stopShiftClickPaneWatcher();
 
   const pending = globalState.pendingShiftClick;
-  if (!pending || !moduleResizeObserver) return;
+  if (!pending) return;
 
   const watcherTimestamp = pending.timestamp;
 
   shiftClickWatcherInterval = setInterval(() => {
     const currentPending = globalState.pendingShiftClick;
 
-    // pendingShiftClick was consumed (handled by mutation observer) — final sync check
+    // Already consumed or replaced by another shift+click — stop
     if (!currentPending || currentPending.timestamp !== watcherTimestamp) {
-      const container = getScrollablePanesContainer();
-      if (container) {
-        const panes = getCurrentSidebarPanes(container);
-        if (!areTabsSyncedWithPanes(panes)) {
-          refreshPanesElementsCache(panes);
-          updateTabs(panes);
-        }
-      }
       stopShiftClickPaneWatcher();
 
       return;
     }
 
-    // Timeout — do a final tabs sync and give up
+    // Timeout — clear stale pending
     if (Date.now() - currentPending.timestamp > SHIFT_CLICK_TIMEOUT_MS) {
-      const container = getScrollablePanesContainer();
-      if (container) {
-        const panes = getCurrentSidebarPanes(container);
-        if (!areTabsSyncedWithPanes(panes)) {
-          refreshPanesElementsCache(panes);
-          updateTabs(panes);
-        }
-      }
       globalState.pendingShiftClick = null;
       stopShiftClickPaneWatcher();
 
       return;
-    }
-
-    if (!globalState.isPanesModeModeActive || !moduleResizeObserver) {
-      stopShiftClickPaneWatcher();
-
-      return;
-    }
-
-    const container = getScrollablePanesContainer();
-    if (!container) return;
-
-    const currentPanes = getCurrentSidebarPanes(container);
-    if (currentPanes.length === 0) return;
-
-    // Try to handle the shift-click pane open (reorder + tabs)
-    const handled = handleShiftClickPaneOpen(currentPending, currentPanes, moduleResizeObserver);
-
-    if (handled) {
-      refreshPanesElementsCache();
-      stopShiftClickPaneWatcher();
-
-      return;
-    }
-
-    // Not handled yet — at least ensure tabs reflect current DOM state
-    if (!areTabsSyncedWithPanes(currentPanes)) {
-      refreshPanesElementsCache(currentPanes);
-      updateTabs(currentPanes);
     }
   }, SHIFT_CLICK_WATCHER_INTERVAL_MS);
 };
@@ -383,18 +338,19 @@ const getFreshPendingShiftClick = (): PendingShiftClick | null => {
 const handleShiftClickPaneOpen = (
   pending: PendingShiftClick,
   currentSidebarPanes: Element[],
-  resizeObserver: ResizeObserver
+  resizeObserver: ResizeObserver,
+  newPanes: Set<Element>
 ): boolean => {
   const container = getScrollablePanesContainer();
   if (!container) return false;
-  // Allow new pane detection for blocks (they open as page panes)
+
   const allowNewPane = !pending.searchSection || pending.searchSection === 'block';
+  const newPaneCandidate = allowNewPane ? newPanes.values().next().value : undefined;
   const targetPane =
-    (allowNewPane ? getNewPaneCandidate(currentSidebarPanes) : null) ??
-    resolveShiftClickTargetPane(pending, currentSidebarPanes);
+    newPaneCandidate ?? resolveShiftClickTargetPane(pending, currentSidebarPanes);
   if (!targetPane) return false;
 
-  const isNewPane = !globalState.cachedPanes.includes(targetPane);
+  const isNewPane = newPanes.has(targetPane);
   if (isNewPane) {
     const newPaneId = getPaneIdFromPane(targetPane);
     enforceMaxTabsLimit(newPaneId || undefined);
@@ -404,20 +360,18 @@ const handleShiftClickPaneOpen = (
   }
 
   const activePane = resolveActivePaneFromPending(pending, currentSidebarPanes);
-  const updatedPanes = reorderPaneNextToActive(targetPane, activePane, container);
-  if (!updatedPanes) {
+  const reordered = reorderPaneNextToActive(targetPane, activePane, container);
+  if (!reordered) {
     globalState.pendingShiftClick = null;
 
     return false;
   }
 
-  const indexToFocus = updatedPanes.indexOf(targetPane);
+  const indexToFocus = reordered.indexOf(targetPane);
   if (indexToFocus !== -1) {
-    setActivePaneByIndex(indexToFocus, updatedPanes, isNewPane);
+    setActivePaneByIndex(indexToFocus, reordered, isNewPane);
   }
-  updatePanesOrderInStorage(updatedPanes);
-  updateTabs(updatedPanes);
-  ensurePaneOrderAndTabsSync(updatedPanes);
+
   notifyVirtuosoScroll();
   globalState.pendingShiftClick = null;
 
@@ -430,8 +384,6 @@ export const createPanesMutationObserver = (resizeObserver: ResizeObserver): Mut
   moduleResizeObserver = resizeObserver;
 
   return new MutationObserver(() => {
-    globalState.lastPanesMutationAt = Date.now();
-
     const currentSidebarPanes = getCurrentSidebarPanes();
     const { newPanes, closedPanes, reorderedPanes } = diffPanes(globalState.cachedPanes, currentSidebarPanes);
 
@@ -454,24 +406,22 @@ export const createPanesMutationObserver = (resizeObserver: ResizeObserver): Mut
       return;
     }
 
-    // Pane(s) closed (returns true if all panes gone, sidebar hidden)
+    // Pane(s) closed
     let lastPaneClosed = false;
     if (closedPanes.size > 0) {
       lastPaneClosed = handleClose(closedPanes, currentSidebarPanes);
     }
 
     // Shift+click pending — handles its own reorder/post-processing
-    if (lastPaneClosed) {
-      return;
-    }
+    if (lastPaneClosed) return;
 
     const pendingShiftClick = getFreshPendingShiftClick();
     if (pendingShiftClick) {
-      debugLog('[PanesMode] has shift click:');
-      const handled = handleShiftClickPaneOpen(pendingShiftClick, currentSidebarPanes, resizeObserver);
+      debugLog('[PanesMode] observer: got pending shift-click:', pendingShiftClick);
+      const handled = handleShiftClickPaneOpen(pendingShiftClick, currentSidebarPanes, resizeObserver, newPanes);
       if (handled) {
         stopShiftClickPaneWatcher();
-        finalize(currentSidebarPanes);
+        finalize(getCurrentSidebarPanes());
         return;
       }
     }

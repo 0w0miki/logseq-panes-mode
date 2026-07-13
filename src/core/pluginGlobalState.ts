@@ -20,7 +20,6 @@ export type GlobalState = {
   paneSwitcherFilteredPanes: Element[];
   expectedMutations: ExpectedMutation[];
   pendingShiftClick: PendingShiftClick | null;
-  lastPanesMutationAt: number;
   isMacDesktop: boolean;
   isWindows: boolean;
   isLinux: boolean;
@@ -46,7 +45,6 @@ export const globalState: GlobalState = {
   paneSwitcherFilteredPanes: [],
   expectedMutations: [],
   pendingShiftClick: null,
-  lastPanesMutationAt: 0,
   isMacDesktop: /Mac/.test(navigator.platform),
   isWindows: /Win/.test(navigator.platform),
   isLinux: /Linux/.test(navigator.platform),
@@ -74,7 +72,6 @@ export const resetState = (): void => {
   globalState.isPaneSwitcherModalVisible = false;
   globalState.expectedMutations = [];
   globalState.pendingShiftClick = null;
-  globalState.lastPanesMutationAt = 0;
   globalState.isProjectsModalVisible = false;
   globalState.projectsSelectedIndex = 0;
   globalState.projectsFilteredList = [];

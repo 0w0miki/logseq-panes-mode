@@ -1,30 +1,21 @@
 // AI slop
 import { APP_SETTINGS_CONFIG } from '../../../core/constants';
 import {
-  arePanesDifferent,
   getPaneIdFromPane,
   getScrollablePanesContainer,
 } from '../../../core/domUtils';
-import { debugLog, debugWarn } from '../../../core/logger';
+import { debugLog } from '../../../core/logger';
 import { globalState, isActivePaneIndexValid } from '../../../core/pluginGlobalState';
 import type { PendingShiftClick } from './types';
 import { waitForDomChanges } from '../../../core/utils';
 import { getCurrentSidebarPanes } from '../paneCache';
 import { setActivePaneByIndex } from '../paneNavigation';
-import { applyPaneDimensions, notifyVirtuosoScroll } from '../paneLayout';
-import { updateTabs } from '../../tabs/tabs';
-import { updatePanesOrderInStorage } from '../panePersistence';
-import { enforceMaxTabsLimit } from '../paneActions';
+
 import {
   startShiftClickPaneWatcher,
   stopShiftClickPaneWatcher,
 } from '../../observers/paneMutations';
 import {
-  getActivePaneElement,
-  getDesiredOrder,
-  getNewPaneCandidate,
-  reorderPaneNextToActive,
-  resolveActivePaneFromPending,
   resolveShiftClickTargetPane,
 } from './paneShiftReorder';
 
@@ -79,29 +70,6 @@ type ActivePaneContext = Pick<PendingShiftClick, 'activePaneId' | 'activePaneInd
 
 type SearchOpenActivePaneContext = ActivePaneContext & {
   timestamp: number;
-};
-
-const buildPageCandidates = (
-  pageName: string | null,
-  pageInfo?: any,
-  fallback?: string
-): string[] => {
-  const candidates = new Set<string>();
-  const addCandidate = (value: unknown) => {
-    if (typeof value === 'string' && value.trim()) {
-      candidates.add(value.trim());
-    } else if (typeof value === 'number') {
-      candidates.add(String(value));
-    }
-  };
-  addCandidate(pageName);
-  addCandidate(pageInfo?.originalName);
-  addCandidate(pageInfo?.name);
-  addCandidate(pageInfo?.id);
-  addCandidate(pageInfo?.uuid);
-  addCandidate(fallback);
-
-  return Array.from(candidates);
 };
 
 const getSearchSectionLabel = (node: HTMLElement): string | null => {
@@ -599,8 +567,6 @@ const getActivePaneContext = (
   return getActivePaneContextFromState();
 };
 
-let pendingShiftClickTimer: ReturnType<typeof setTimeout> | null = null;
-let pendingShiftClickRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingSearchFocusTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingSearchFocusRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let searchOpenActivePaneContext: SearchOpenActivePaneContext | null = null;
@@ -709,301 +675,6 @@ const focusPaneForSearchTarget = (pending: PendingSearchFocus): boolean => {
   return true;
 };
 
-const finalizePaneReorder = (
-  targetPane: Element,
-  activePane: Element | null,
-  container: HTMLElement,
-  options: { baseOrder?: Element[]; isNewPane?: boolean; targetInCache?: boolean } = {}
-): void => {
-  const currentPanes = getCurrentSidebarPanes(container);
-  const targetInCache = options.targetInCache ?? globalState.cachedPanes.includes(targetPane);
-  const activeInCache = activePane ? globalState.cachedPanes.includes(activePane) : false;
-  const shouldUseCachedOrder = !options.baseOrder && targetInCache && activeInCache;
-  const baseOrder =
-    options.baseOrder ?? (shouldUseCachedOrder ? globalState.cachedPanes : currentPanes);
-  const desiredOrder = getDesiredOrder(targetPane, activePane, baseOrder);
-  if (!desiredOrder) {
-    debugLog(DEBUG_PREFIX, 'desired order not found', {
-      targetPaneId: getPaneIdFromPane(targetPane),
-    });
-    globalState.pendingShiftClick = null;
-
-    return;
-  }
-  if (!arePanesDifferent(desiredOrder, currentPanes)) {
-    debugLog(DEBUG_PREFIX, 'pane already in desired position');
-    globalState.pendingShiftClick = null;
-
-    return;
-  }
-  if (options.isNewPane) {
-    applyPaneDimensions(targetPane as HTMLElement);
-  }
-  const updatedPanes = reorderPaneNextToActive(targetPane, activePane, container);
-  if (!updatedPanes) {
-    debugLog(DEBUG_PREFIX, 'reorder failed', {
-      targetPaneId: getPaneIdFromPane(targetPane),
-    });
-    globalState.pendingShiftClick = null;
-
-    return;
-  }
-
-  const indexToFocus = updatedPanes.indexOf(targetPane);
-  if (indexToFocus !== -1) {
-    setActivePaneByIndex(indexToFocus, updatedPanes);
-  }
-  updatePanesOrderInStorage(updatedPanes);
-  updateTabs(updatedPanes);
-  notifyVirtuosoScroll();
-  globalState.pendingShiftClick = null;
-};
-
-const tryReorderByActivePane = (
-  pending: PendingShiftClick,
-  currentPanes: Element[],
-  container: HTMLElement
-): boolean => {
-  const activePaneNow = getActivePaneElement(currentPanes);
-  const previousActive = resolveActivePaneFromPending(pending, currentPanes);
-  if (!activePaneNow || !previousActive || activePaneNow === previousActive) return false;
-  if (!globalState.cachedPanes.includes(activePaneNow)) return false;
-  debugLog(DEBUG_PREFIX, 'fallback reorder by active pane', {
-    activePaneId: getPaneIdFromPane(activePaneNow),
-    previousActiveId: getPaneIdFromPane(previousActive),
-  });
-  finalizePaneReorder(activePaneNow, previousActive, container, { targetInCache: true });
-
-  return true;
-};
-
-const resolveBlockTargetViaLogseq = async (pending: PendingShiftClick): Promise<boolean> => {
-  if (!logseq?.Editor?.getBlock) {
-    debugLog(DEBUG_PREFIX, 'logseq Editor API unavailable for block resolve');
-
-    return false;
-  }
-  try {
-    const block = await logseq.Editor.getBlock(pending.targetId);
-    const pageInfo: any = (block as any)?.page;
-    let pageName: string | null =
-      typeof pageInfo === 'string' ? pageInfo : (pageInfo?.originalName ?? pageInfo?.name ?? null);
-    if (!pageName && pageInfo?.id && logseq?.Editor?.getPage) {
-      const page = await logseq.Editor.getPage(pageInfo.id);
-      pageName = typeof page === 'string' ? page : (page?.originalName ?? page?.name ?? pageName);
-    }
-    if (!pageName) {
-      debugLog(DEBUG_PREFIX, 'block resolve missing page name', { blockId: pending.targetId });
-
-      return false;
-    }
-    const currentPending = globalState.pendingShiftClick;
-    if (!currentPending || currentPending.timestamp !== pending.timestamp) return false;
-    const pageCandidates = buildPageCandidates(pageName, pageInfo);
-    const updatedPending: PendingShiftClick = {
-      ...currentPending,
-      targetType: 'page',
-      targetId: String(pageName),
-      targetCandidates: pageCandidates,
-    };
-    globalState.pendingShiftClick = updatedPending;
-    debugLog(DEBUG_PREFIX, 'block resolved to page', {
-      blockId: pending.targetId,
-      pageName,
-    });
-
-    const container = getScrollablePanesContainer();
-    if (!container) return false;
-    const currentPanes = getCurrentSidebarPanes(container);
-    const targetPane = resolveShiftClickTargetPane(updatedPending, currentPanes);
-    if (targetPane && globalState.cachedPanes.includes(targetPane)) {
-      const activePane = resolveActivePaneFromPending(updatedPending, currentPanes);
-      finalizePaneReorder(targetPane, activePane, container, { targetInCache: true });
-
-      return true;
-    }
-
-    return tryReorderByActivePane(updatedPending, currentPanes, container);
-  } catch (error) {
-    debugWarn(DEBUG_PREFIX, 'block resolve failed', error);
-
-    return false;
-  }
-};
-
-const resolvePageTargetViaLogseq = async (pending: PendingShiftClick): Promise<boolean> => {
-  if (!logseq?.Editor?.getPage) {
-    debugLog(DEBUG_PREFIX, 'logseq Editor API unavailable for page resolve');
-
-    return false;
-  }
-  try {
-    const page = await logseq.Editor.getPage(pending.targetId);
-    if (!page) {
-      debugLog(DEBUG_PREFIX, 'page resolve returned empty', { targetId: pending.targetId });
-
-      return false;
-    }
-    const pageInfo: any = page;
-    const pageName =
-      typeof pageInfo === 'string' ? pageInfo : (pageInfo?.originalName ?? pageInfo?.name ?? null);
-    const pageCandidates = buildPageCandidates(pageName, pageInfo, pending.targetId);
-    const currentPending = globalState.pendingShiftClick;
-    if (!currentPending || currentPending.timestamp !== pending.timestamp) return false;
-    const updatedPending: PendingShiftClick = {
-      ...currentPending,
-      targetType: 'page',
-      targetId: pageName ?? pending.targetId,
-      targetCandidates: pageCandidates,
-    };
-    globalState.pendingShiftClick = updatedPending;
-    debugLog(DEBUG_PREFIX, 'page resolved via logseq', {
-      targetId: pending.targetId,
-      pageName,
-      pageCandidates,
-    });
-
-    const container = getScrollablePanesContainer();
-    if (!container) return false;
-    const currentPanes = getCurrentSidebarPanes(container);
-    const targetPane = resolveShiftClickTargetPane(updatedPending, currentPanes);
-    if (targetPane && globalState.cachedPanes.includes(targetPane)) {
-      const activePane = resolveActivePaneFromPending(updatedPending, currentPanes);
-      finalizePaneReorder(targetPane, activePane, container, { targetInCache: true });
-
-      return true;
-    }
-
-    return tryReorderByActivePane(updatedPending, currentPanes, container);
-  } catch (error) {
-    debugWarn(DEBUG_PREFIX, 'page resolve failed', error);
-
-    return false;
-  }
-};
-
-const attemptShiftClickReorder = (
-  currentPending: PendingShiftClick,
-  currentPanes: Element[],
-  container: HTMLElement,
-  options: { allowLogseqResolve: boolean }
-): boolean => {
-  // Allow new pane detection for blocks (they open as page panes)
-  const shouldCheckNewPane =
-    !currentPending.searchSection || currentPending.searchSection === 'block';
-  if (shouldCheckNewPane) {
-    const newPaneCandidate = getNewPaneCandidate(currentPanes);
-    if (newPaneCandidate) {
-      debugLog(DEBUG_PREFIX, 'new pane candidate detected', {
-        targetPaneId: getPaneIdFromPane(newPaneCandidate),
-      });
-      const newPaneId = getPaneIdFromPane(newPaneCandidate);
-      enforceMaxTabsLimit(newPaneId || undefined);
-      const activePane = resolveActivePaneFromPending(currentPending, currentPanes);
-      finalizePaneReorder(newPaneCandidate, activePane, container, {
-        baseOrder: currentPanes,
-        isNewPane: true,
-      });
-
-      return true;
-    }
-  }
-
-  const targetPane = resolveShiftClickTargetPane(currentPending, currentPanes);
-  if (targetPane) {
-    const inCache = globalState.cachedPanes.includes(targetPane);
-    debugLog(DEBUG_PREFIX, 'resolved target pane', {
-      targetType: currentPending.targetType,
-      targetId: currentPending.targetId,
-      targetCandidates: currentPending.targetCandidates,
-      searchSection: currentPending.searchSection,
-      targetPaneId: getPaneIdFromPane(targetPane),
-      inCache,
-    });
-    if (inCache) {
-      debugLog(DEBUG_PREFIX, 'fallback reorder target pane', {
-        targetPaneId: getPaneIdFromPane(targetPane),
-      });
-      const activePane = resolveActivePaneFromPending(currentPending, currentPanes);
-      finalizePaneReorder(targetPane, activePane, container, { targetInCache: true });
-
-      return true;
-    }
-    debugLog(DEBUG_PREFIX, 'target pane not in cache, skipping reorder');
-  } else {
-    debugLog(DEBUG_PREFIX, 'no target pane match', {
-      targetType: currentPending.targetType,
-      targetId: currentPending.targetId,
-      targetCandidates: currentPending.targetCandidates,
-      searchSection: currentPending.searchSection,
-      paneCount: currentPanes.length,
-    });
-  }
-
-  if (!currentPending.searchSection) {
-    const reordered = tryReorderByActivePane(currentPending, currentPanes, container);
-    if (reordered) return true;
-  }
-
-  // Allow Logseq API resolution for blocks (even from search) and pages without searchSection
-  const allowResolve =
-    options.allowLogseqResolve &&
-    (!currentPending.searchSection || currentPending.searchSection === 'block');
-  if (allowResolve) {
-    if (currentPending.targetType === 'block') {
-      void resolveBlockTargetViaLogseq(currentPending);
-    } else if (currentPending.targetType === 'page') {
-      const candidateCount = currentPending.targetCandidates?.length ?? 0;
-      if (candidateCount <= 1) {
-        void resolvePageTargetViaLogseq(currentPending);
-      }
-    }
-  }
-
-  return false;
-};
-
-const scheduleExistingPaneReorder = (pending: PendingShiftClick): void => {
-  if (pendingShiftClickTimer) {
-    clearTimeout(pendingShiftClickTimer);
-    pendingShiftClickTimer = null;
-  }
-  if (pendingShiftClickRetryTimer) {
-    clearTimeout(pendingShiftClickRetryTimer);
-    pendingShiftClickRetryTimer = null;
-  }
-  pendingShiftClickTimer = waitForDomChanges(() => {
-    const currentPending = globalState.pendingShiftClick;
-    if (!currentPending || currentPending.timestamp !== pending.timestamp) return;
-    const container = getScrollablePanesContainer();
-    if (!container) return;
-    const currentPanes = getCurrentSidebarPanes(container);
-    const handled = attemptShiftClickReorder(currentPending, currentPanes, container, {
-      allowLogseqResolve: true,
-    });
-    if (handled) return;
-
-    pendingShiftClickRetryTimer = waitForDomChanges(() => {
-      const retryPending = globalState.pendingShiftClick;
-      if (!retryPending || retryPending.timestamp !== pending.timestamp) return;
-      if (globalState.lastPanesMutationAt > retryPending.timestamp) {
-        debugLog(DEBUG_PREFIX, 'skip fallback after mutation', {
-          lastMutationAt: globalState.lastPanesMutationAt,
-          pendingAt: retryPending.timestamp,
-        });
-
-        return;
-      }
-      const retryContainer = getScrollablePanesContainer();
-      if (!retryContainer) return;
-      const retryPanes = getCurrentSidebarPanes(retryContainer);
-      attemptShiftClickReorder(retryPending, retryPanes, retryContainer, {
-        allowLogseqResolve: true,
-      });
-    }, SHIFT_CLICK_RETRY_DELAY_MS / 1000).timeoutId;
-  }, SHIFT_CLICK_FALLBACK_DELAY_MS / 1000).timeoutId;
-};
-
 const scheduleSearchPaneFocus = (pending: PendingSearchFocus): void => {
   if (pendingSearchFocusTimer) {
     clearTimeout(pendingSearchFocusTimer);
@@ -1049,7 +720,6 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
     };
     debugLog(DEBUG_PREFIX, 'pending set', globalState.pendingShiftClick);
     startShiftClickPaneWatcher();
-    scheduleExistingPaneReorder(globalState.pendingShiftClick);
   };
 
   const handleShiftPointerEvent = (event: MouseEvent, eventType: 'mousedown' | 'click') => {
@@ -1163,14 +833,6 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
     targetWindow.removeEventListener('click', handleClick, true);
     targetWindow.removeEventListener('keydown', handleKeyDown, true);
     stopShiftClickPaneWatcher();
-    if (pendingShiftClickTimer) {
-      clearTimeout(pendingShiftClickTimer);
-      pendingShiftClickTimer = null;
-    }
-    if (pendingShiftClickRetryTimer) {
-      clearTimeout(pendingShiftClickRetryTimer);
-      pendingShiftClickRetryTimer = null;
-    }
     if (pendingSearchFocusTimer) {
       clearTimeout(pendingSearchFocusTimer);
       pendingSearchFocusTimer = null;
