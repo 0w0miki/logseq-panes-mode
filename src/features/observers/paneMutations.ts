@@ -311,6 +311,7 @@ const handleNewPanes = (
   }
 
   notifyVirtuosoScroll();
+  refreshPanesElementsCache(updatedPanes);
 };
 
 const finalize = (currentPanes: Element[]): void => {
@@ -319,6 +320,7 @@ const finalize = (currentPanes: Element[]): void => {
   updateTabs(currentPanes);
   ensurePaneOrderAndTabsSync(currentPanes);
   refreshPanesElementsCache();
+  debugLog('[PanesMode] finalize:', { activeIndex: globalState.currentActivePaneIndex, panesCount: currentPanes.length });
 };
 
 // --- Shift click ---
@@ -439,7 +441,7 @@ export const createPanesMutationObserver = (resizeObserver: ResizeObserver): Mut
       }
     }
 
-    finalize(currentSidebarPanes);
+    finalize(getCurrentSidebarPanes());
   });
 };
 
