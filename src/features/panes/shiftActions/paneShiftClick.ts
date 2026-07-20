@@ -31,6 +31,8 @@ const SHIFT_CLICK_SELECTORS = {
 const DB_SHIFT_CLICK_SELECTORS = {
   pageLink: 'a.page-ref[data-ref], a.tag[data-ref], .preview-ref-link a[data-ref]',
   pageContainer: '.preview-ref-link, .page-reference, .inline-wrap, .full.inline-wrap',
+  pageId: '.ls-page-title .ls-block',
+  pageTitle: '.ls-page-title-container .block-title-wrap',
 } as const;
 
 const DEBUG_PREFIX = '[PanesMode][ShiftClick]';
@@ -464,6 +466,28 @@ const getPageCandidatesFromElement = (element: HTMLElement | null): string[] => 
   return Array.from(candidates);
 };
 
+const getPageCandidatesFromTitle = (element: HTMLElement): string[] => {
+  if (!element) return [];
+  if (!element.matches(DB_SHIFT_CLICK_SELECTORS.pageTitle)) return [];
+
+  const idElement = element.closest(DB_SHIFT_CLICK_SELECTORS.pageId) as HTMLElement | null;
+  if (!idElement) return [];
+
+
+  const candidates = new Set<string>();
+  const addCandidate = (value: string | null | undefined) => {
+    const trimmedValue = value?.trim();
+    if (trimmedValue) {
+      candidates.add(extractPageNameFromText(trimmedValue));
+    }
+  };
+
+  addCandidate(idElement.getAttribute('blockid'));
+  addCandidate(element.textContent);
+
+  return Array.from(candidates);
+}
+
 const getDbPageTargetElement = (target: HTMLElement): HTMLElement | null => {
   const directPageLink = target.closest(DB_SHIFT_CLICK_SELECTORS.pageLink) as HTMLElement | null;
   if (directPageLink) return directPageLink;
@@ -496,20 +520,23 @@ const getShiftClickTarget = (target: HTMLElement): ShiftClickTarget | null => {
     return searchTarget;
   }
 
+  // Page
   if (APP_SETTINGS_CONFIG.isDBVersion) {
-    const dbPageElement = getDbPageTargetElement(target);
-    const pageCandidates = getPageCandidatesFromElement(dbPageElement);
+    let pageCandidates = getPageCandidatesFromTitle(target);
     if (pageCandidates.length > 0) {
+      debugLog(DEBUG_PREFIX, 'page target', pageCandidates[0]);
+      return { type: 'page', id: pageCandidates[0], candidates: pageCandidates };
+    }
+
+    const pageElement = target.closest(SHIFT_CLICK_SELECTORS.page) as HTMLElement | null;
+    pageCandidates = getPageCandidatesFromElement(pageElement);
+    if (pageCandidates.length > 0) {
+      debugLog(DEBUG_PREFIX, 'page target', pageCandidates[0]);
       return { type: 'page', id: pageCandidates[0], candidates: pageCandidates };
     }
   }
 
-  const pageElement = target.closest(SHIFT_CLICK_SELECTORS.page) as HTMLElement | null;
-  const pageCandidates = getPageCandidatesFromElement(pageElement);
-  if (pageCandidates.length > 0) {
-    return { type: 'page', id: pageCandidates[0], candidates: pageCandidates };
-  }
-
+  // Block
   const blockElement = target.closest(SHIFT_CLICK_SELECTORS.block) as HTMLElement | null;
   const blockId = blockElement?.getAttribute('blockid') ?? blockElement?.getAttribute('data-uuid');
   if (blockId) {
