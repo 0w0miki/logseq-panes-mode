@@ -249,52 +249,19 @@ const handleNewPanes = (
   const container = getScrollablePanesContainer();
   if (!container) return;
 
-  const cachedPageIds = new Set(
-    globalState.cachedPanes.map(p => getPaneIdFromPane(p)).filter(Boolean)
-  );
-
-  // Separate reopened panes (same pageId) from genuinely new ones
-  const reopenedPanes: Element[] = [];
-  const genuinelyNewPanes: Element[] = [];
-
-  for (const pane of newPanes) {
-    const pageId = getPaneIdFromPane(pane);
-    if (pageId && cachedPageIds.has(pageId)) {
-      reopenedPanes.push(pane);
-    } else {
-      genuinelyNewPanes.push(pane);
-    }
-  }
-
-  // Handle reopened panes — reorder next to active
-  for (const pane of reopenedPanes) {
-    const activePane = getActivePaneElement(currentPanes);
-    const updated = reorderPaneNextToActive(pane, activePane ?? currentPanes[0], container);
-    if (updated) {
-      updatePanesOrderInStorage(updated);
-      updateTabs(updated);
-      ensurePaneOrderAndTabsSync(updated);
-    }
-  }
-
-  if (genuinelyNewPanes.length === 0) {
-    refreshPanesElementsCache();
-    return;
-  }
-
   if (pluginSettings.autoCloseOldestTab) {
     enforceMaxTabsLimit();
   }
 
   globalState.expectedMutations.push(EXPECTED_MUTATIONS.newSidebarItemsReordering);
 
-  for (const newPane of genuinelyNewPanes) {
+  const activePane = getActivePaneElement(currentPanes);
+  const activePos = activePane ? currentPanes.indexOf(activePane) : -1;
+
+  for (const newPane of newPanes) {
     observePaneForResize(resizeObserver, newPane);
     enableFitContentForNewPane(newPane);
     applyPaneDimensions(newPane as HTMLElement);
-
-    const activePane = getActivePaneElement(currentPanes);
-    const activePos = activePane ? currentPanes.indexOf(activePane) : -1;
 
     if (globalState.alwaysOpenPanesAtBegining) {
       container.insertBefore(newPane, container.firstChild);
@@ -303,15 +270,14 @@ const handleNewPanes = (
     }
   }
 
-  const updatedPanes = getCurrentSidebarPanes(container);
-  const lastNewPane = genuinelyNewPanes[genuinelyNewPanes.length - 1];
-  const newPaneIndex = updatedPanes.indexOf(lastNewPane);
-  if (newPaneIndex !== -1) {
+  if (newPanes.size > 0) {
+    const updatedPanes = getCurrentSidebarPanes(container);
+    const newPaneIndex = globalState.alwaysOpenPanesAtBegining ? 0 : activePos + 1;
     setActivePaneByIndex(newPaneIndex, updatedPanes, true);
   }
 
   notifyVirtuosoScroll();
-  refreshPanesElementsCache(updatedPanes);
+  refreshPanesElementsCache(getCurrentSidebarPanes(container));
 };
 
 const finalize = (currentPanes: Element[]): void => {
