@@ -19,9 +19,6 @@ import {
   notifyVirtuosoScroll,
 } from '../panes/paneLayout';
 import { updatePanesOrderInStorage } from '../panes/panePersistence';
-import {
-  getActivePaneElement,
-} from '../panes/shiftActions/paneShiftReorder';
 import { EXPECTED_MUTATIONS } from './types';
 import { getPluginSettings } from '../../core/pluginSettings';
 
@@ -189,15 +186,15 @@ const handleClose = (closedPanes: Set<Element>, currentPanes: Element[]): void =
 
 const handleNewPanes = (
   newPanes: Set<Element>,
-  currentPanes: Element[],
   resizeObserver: ResizeObserver
 ): void => {
   if (getPluginSettings().autoCloseOldestTab) {
     enforceMaxTabsLimit();
   }
 
-  const activePane = getActivePaneElement(currentPanes);
-  const activePos = activePane ? currentPanes.indexOf(activePane) : -1;
+  const activeIndex = globalState.currentActivePaneIndex;
+  const activePos =
+    activeIndex !== null && activeIndex < globalState.cachedPanes.length ? activeIndex : -1;
 
   for (const newPane of newPanes) {
     observePaneForResize(resizeObserver, newPane);
@@ -214,7 +211,7 @@ const handleNewPanes = (
   if (newPanes.size > 0) {
     syncPaneIndices(globalState.cachedPanes);
     const newPaneIndex = globalState.alwaysOpenPanesAtBegining ? 0 : activePos + 1;
-    setActivePaneByIndex(newPaneIndex, globalState.cachedPanes, true);
+    globalState.currentActivePaneIndex = newPaneIndex;
   }
 };
 
@@ -271,7 +268,7 @@ export const createPanesMutationObserver = (resizeObserver: ResizeObserver): Mut
 
     // New pane(s) opened
     if (newPanes.size > 0) {
-      handleNewPanes(newPanes, currentSidebarPanes, resizeObserver);
+      handleNewPanes(newPanes, resizeObserver);
     }
 
     // Reorder — restore to cached order
