@@ -14,10 +14,6 @@ import { notifyVirtuosoScroll } from '../paneLayout';
 import { updateTabs } from '../../tabs/tabs';
 import { updatePanesOrderInStorage } from '../panePersistence';
 import {
-  startShiftClickPaneWatcher,
-  stopShiftClickPaneWatcher,
-} from '../../observers/paneMutations';
-import {
   reorderPaneNextToActive,
   resolveActivePaneFromPending,
   resolveShiftClickTargetPane,
@@ -779,9 +775,6 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
       }
       return;
     }
-
-    globalState.pendingShiftClick = pending;
-    startShiftClickPaneWatcher();
   };
 
   const handleClick = (event: MouseEvent) => {
@@ -863,7 +856,6 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
     const activePaneContext =
       getSearchOpenActivePaneContext() ?? getActivePaneContext(selectedItem);
     setPendingShiftClickFromTarget(selectedItem, searchTarget, activePaneContext);
-    debugLog(DEBUG_PREFIX, 'shift+enter pending set', globalState.pendingShiftClick);
     searchOpenActivePaneContext = null;
   };
 
@@ -875,7 +867,6 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
   return () => {
     targetWindow.removeEventListener('click', handleClick, true);
     targetWindow.removeEventListener('keydown', handleKeyDown, true);
-    stopShiftClickPaneWatcher();
     if (pendingSearchFocusTimer) {
       clearTimeout(pendingSearchFocusTimer);
       pendingSearchFocusTimer = null;

@@ -1,7 +1,6 @@
 import { APP_SETTINGS_CONFIG } from './constants';
 import type { ProjectListItem } from '../features/projects/types';
 import type { ExpectedMutation } from '../features/observers/types';
-import type { PendingShiftClick } from '../features/panes/shiftActions/types';
 
 export type GlobalState = {
   isPanesModeModeActive: boolean;
@@ -19,7 +18,6 @@ export type GlobalState = {
   paneSwitcherSelectedIndex: number;
   paneSwitcherFilteredPanes: Element[];
   expectedMutations: ExpectedMutation[];
-  pendingShiftClick: PendingShiftClick | null;
   isMacDesktop: boolean;
   isWindows: boolean;
   isLinux: boolean;
@@ -44,7 +42,6 @@ export const globalState: GlobalState = {
   paneSwitcherSelectedIndex: 0,
   paneSwitcherFilteredPanes: [],
   expectedMutations: [],
-  pendingShiftClick: null,
   isMacDesktop: /Mac/.test(navigator.platform),
   isWindows: /Win/.test(navigator.platform),
   isLinux: /Linux/.test(navigator.platform),
@@ -71,7 +68,6 @@ export const resetState = (): void => {
   globalState.paneSwitcherSelectedIndex = 0;
   globalState.isPaneSwitcherModalVisible = false;
   globalState.expectedMutations = [];
-  globalState.pendingShiftClick = null;
   globalState.isProjectsModalVisible = false;
   globalState.projectsSelectedIndex = 0;
   globalState.projectsFilteredList = [];

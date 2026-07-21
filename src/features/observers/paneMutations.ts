@@ -25,15 +25,12 @@ import {
 import { EXPECTED_MUTATIONS } from './types';
 import { getPluginSettings } from '../../core/pluginSettings';
 
-const SHIFT_CLICK_TIMEOUT_MS = 2000;
 const PANE_SYNC_INTERVAL_MS = 100;
-const SHIFT_CLICK_WATCHER_INTERVAL_MS = 50;
 const TAB_SELECTOR = '.panesMode-tab';
 
 let paneOrderSyncInterval: ReturnType<typeof setInterval> | null = null;
 let paneOrderSyncTarget: Element[] | null = null;
 let moduleResizeObserver: ResizeObserver | null = null;
-let shiftClickWatcherInterval: ReturnType<typeof setInterval> | null = null;
 let containerWatchdogObserver: MutationObserver | null = null;
 let containerWatchdogHost: HTMLElement | null = null;
 let containerWatchdogElement: HTMLElement | null = null;
@@ -44,41 +41,6 @@ export const stopPaneOrderSync = (): void => {
     paneOrderSyncInterval = null;
   }
   paneOrderSyncTarget = null;
-};
-
-export const stopShiftClickPaneWatcher = (): void => {
-  if (shiftClickWatcherInterval !== null) {
-    clearInterval(shiftClickWatcherInterval);
-    shiftClickWatcherInterval = null;
-  }
-};
-
-export const startShiftClickPaneWatcher = (): void => {
-  stopShiftClickPaneWatcher();
-
-  const pending = globalState.pendingShiftClick;
-  if (!pending) return;
-
-  const watcherTimestamp = pending.timestamp;
-
-  shiftClickWatcherInterval = setInterval(() => {
-    const currentPending = globalState.pendingShiftClick;
-
-    // Already consumed or replaced by another shift+click — stop
-    if (!currentPending || currentPending.timestamp !== watcherTimestamp) {
-      stopShiftClickPaneWatcher();
-
-      return;
-    }
-
-    // Timeout — clear stale pending
-    if (Date.now() - currentPending.timestamp > SHIFT_CLICK_TIMEOUT_MS) {
-      globalState.pendingShiftClick = null;
-      stopShiftClickPaneWatcher();
-
-      return;
-    }
-  }, SHIFT_CLICK_WATCHER_INTERVAL_MS);
 };
 
 const areTabsSyncedWithPanes = (panes: Element[]): boolean => {
