@@ -1,7 +1,6 @@
 import { APP_SETTINGS_CONFIG } from '../../core/constants';
 import { debugLog, debugWarn } from '../../core/logger';
 import { globalState } from '../../core/pluginGlobalState';
-import type { PendingShiftClick } from '../panes/shiftActions/types';
 import { waitForDomChanges } from '../../core/utils';
 import {
   arePanesDifferent,
@@ -22,9 +21,6 @@ import {
 import { updatePanesOrderInStorage } from '../panes/panePersistence';
 import {
   getActivePaneElement,
-  reorderPaneNextToActive,
-  resolveActivePaneFromPending,
-  resolveShiftClickTargetPane,
 } from '../panes/shiftActions/paneShiftReorder';
 import { EXPECTED_MUTATIONS } from './types';
 import { getPluginSettings } from '../../core/pluginSettings';
@@ -269,63 +265,6 @@ const finalize = (currentPanes: Element[]): void => {
   debugLog('[PanesMode] finalize:', { activeIndex: globalState.currentActivePaneIndex, panesCount: currentPanes.length });
 };
 
-// --- Shift click ---
-
-const getFreshPendingShiftClick = (): PendingShiftClick | null => {
-  const pending = globalState.pendingShiftClick;
-  if (!pending) return null;
-  if (Date.now() - pending.timestamp > SHIFT_CLICK_TIMEOUT_MS) {
-    globalState.pendingShiftClick = null;
-
-    return null;
-  }
-
-  return pending;
-};
-
-const handleShiftClickPaneOpen = (
-  pending: PendingShiftClick,
-  currentSidebarPanes: Element[],
-  resizeObserver: ResizeObserver,
-  newPanes: Set<Element>
-): boolean => {
-  const container = getScrollablePanesContainer();
-  if (!container) return false;
-
-  const allowNewPane = !pending.searchSection || pending.searchSection === 'block';
-  const newPaneCandidate = allowNewPane ? newPanes.values().next().value : undefined;
-  const targetPane =
-    newPaneCandidate ?? resolveShiftClickTargetPane(pending, currentSidebarPanes);
-  if (!targetPane) return false;
-
-  const isNewPane = newPanes.has(targetPane);
-  if (isNewPane) {
-    const newPaneId = getPaneIdFromPane(targetPane);
-    enforceMaxTabsLimit(newPaneId || undefined);
-    observePaneForResize(resizeObserver, targetPane);
-    enableFitContentForNewPane(targetPane);
-    applyPaneDimensions(targetPane as HTMLElement);
-  }
-
-  const activePane = resolveActivePaneFromPending(pending, currentSidebarPanes);
-  const reordered = reorderPaneNextToActive(targetPane, activePane, container);
-  if (!reordered) {
-    globalState.pendingShiftClick = null;
-
-    return false;
-  }
-
-  const indexToFocus = reordered.indexOf(targetPane);
-  if (indexToFocus !== -1) {
-    setActivePaneByIndex(indexToFocus, reordered, isNewPane);
-  }
-
-  notifyVirtuosoScroll();
-  globalState.pendingShiftClick = null;
-
-  return true;
-};
-
 // --- Main observer ---
 
 export const createPanesMutationObserver = (resizeObserver: ResizeObserver): MutationObserver => {
@@ -366,18 +305,6 @@ export const createPanesMutationObserver = (resizeObserver: ResizeObserver): Mut
     // Pane(s) closed
     if (closedPanes.size > 0) {
       handleClose(closedPanes, currentSidebarPanes);
-    }
-
-    // Shift+click pending — handles its own reorder/post-processing
-    const pendingShiftClick = getFreshPendingShiftClick();
-    if (pendingShiftClick) {
-      debugLog('[PanesMode] observer: got pending shift-click:', pendingShiftClick);
-      const handled = handleShiftClickPaneOpen(pendingShiftClick, currentSidebarPanes, resizeObserver, newPanes);
-      if (handled) {
-        stopShiftClickPaneWatcher();
-        finalize(getCurrentSidebarPanes());
-        return;
-      }
     }
 
     // New pane(s) opened
