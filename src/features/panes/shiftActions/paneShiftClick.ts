@@ -528,12 +528,17 @@ const getShiftClickTarget = (target: HTMLElement): ShiftClickTarget | null => {
       return { type: 'page', id: pageCandidates[0], candidates: pageCandidates };
     }
 
-    const pageElement = target.closest(SHIFT_CLICK_SELECTORS.page) as HTMLElement | null;
-    pageCandidates = getPageCandidatesFromElement(pageElement);
+    const dbPageElement = getDbPageTargetElement(target);
+    pageCandidates = getPageCandidatesFromElement(dbPageElement);
     if (pageCandidates.length > 0) {
-      debugLog(DEBUG_PREFIX, 'page target', pageCandidates[0]);
       return { type: 'page', id: pageCandidates[0], candidates: pageCandidates };
     }
+  }
+
+  const pageElement = target.closest(SHIFT_CLICK_SELECTORS.page) as HTMLElement | null;
+  const pageCandidates = getPageCandidatesFromElement(pageElement);
+  if (pageCandidates.length > 0) {
+    return { type: 'page', id: pageCandidates[0], candidates: pageCandidates };
   }
 
   // Block
