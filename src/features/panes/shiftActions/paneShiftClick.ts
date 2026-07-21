@@ -784,35 +784,18 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
     startShiftClickPaneWatcher();
   };
 
-  const handleShiftPointerEvent = (event: MouseEvent, eventType: 'mousedown' | 'click') => {
-    if (!globalState.isPanesModeModeActive) return;
-    if (!event.shiftKey || event.button !== 0) return;
-
-    const target = getEventTargetElement(event);
-    if (!target) return;
-
-    const shiftTarget = getShiftClickTarget(target);
-    if (!shiftTarget) return;
-
-    setPendingShiftClickFromTarget(target, shiftTarget);
-  };
-
-  const handleMouseDown = (event: MouseEvent) => {
-    // DB graphs swallow the shift-mousedown on page refs, so legacy keeps mousedown
-    // while DB mode uses the shift-click path below.
-    if (APP_SETTINGS_CONFIG.isDBVersion) return;
-
-    handleShiftPointerEvent(event, 'mousedown');
-  };
-
   const handleClick = (event: MouseEvent) => {
     if (!globalState.isPanesModeModeActive) return;
     if (event.button !== 0) return;
 
     if (event.shiftKey) {
-      if (!APP_SETTINGS_CONFIG.isDBVersion) return;
-      handleShiftPointerEvent(event, 'click');
+      const target = getEventTargetElement(event);
+      if (!target) return;
 
+      const shiftTarget = getShiftClickTarget(target);
+      if (!shiftTarget) return;
+
+      setPendingShiftClickFromTarget(target, shiftTarget);
       return;
     }
 
@@ -885,13 +868,11 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
   };
 
   const targetWindow = parent.window ?? window;
-  targetWindow.addEventListener('mousedown', handleMouseDown, true);
   targetWindow.addEventListener('click', handleClick, true);
   targetWindow.addEventListener('keydown', handleKeyDown, true);
   debugLog(DEBUG_PREFIX, 'listeners attached to parent.window');
 
   return () => {
-    targetWindow.removeEventListener('mousedown', handleMouseDown, true);
     targetWindow.removeEventListener('click', handleClick, true);
     targetWindow.removeEventListener('keydown', handleKeyDown, true);
     stopShiftClickPaneWatcher();
