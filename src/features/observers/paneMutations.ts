@@ -200,18 +200,8 @@ const diffPanes = (cached: Element[], current: Element[]): PaneDiff => {
 
 // --- Pane change handlers ---
 
-const handleClose = (closedPanes: Set<Element>, currentPanes: Element[]): boolean => {
+const handleClose = (closedPanes: Set<Element>, currentPanes: Element[]): void => {
   debugLog('[PanesMode] handleClose:', { closedCount: closedPanes.size, remainingCount: currentPanes.length });
-
-  if (currentPanes.length === 0) {
-    debugLog('[PanesMode] handleClose: last pane closed, hiding sidebar');
-    logseq.App.setRightSidebarVisible(false);
-    globalState.currentActivePaneIndex = null;
-    refreshPanesElementsCache([]);
-    updateTabs([]);
-
-    return true;
-  }
 
   const activeIndex = globalState.currentActivePaneIndex;
   // Process closes in reverse order so earlier index adjustments don't affect later ones
@@ -237,8 +227,6 @@ const handleClose = (closedPanes: Set<Element>, currentPanes: Element[]): boolea
     setActivePaneByIndex(adjustedActiveIndex, currentPanes);
   }
   globalState.cachedPanes = globalState.cachedPanes.filter(p => !closedPanes.has(p));
-
-  return false;
 };
 
 const handleNewPanes = (
@@ -366,15 +354,21 @@ export const createPanesMutationObserver = (resizeObserver: ResizeObserver): Mut
       return;
     }
 
+    // All pane closed — hide sidebar, nothing else to do
+    if (currentSidebarPanes.length === 0) {
+      logseq.App.setRightSidebarVisible(false);
+      globalState.currentActivePaneIndex = null;
+      refreshPanesElementsCache([]);
+      updateTabs([]);
+      return;
+    }
+
     // Pane(s) closed
-    let lastPaneClosed = false;
     if (closedPanes.size > 0) {
-      lastPaneClosed = handleClose(closedPanes, currentSidebarPanes);
+      handleClose(closedPanes, currentSidebarPanes);
     }
 
     // Shift+click pending — handles its own reorder/post-processing
-    if (lastPaneClosed) return;
-
     const pendingShiftClick = getFreshPendingShiftClick();
     if (pendingShiftClick) {
       debugLog('[PanesMode] observer: got pending shift-click:', pendingShiftClick);
