@@ -9,7 +9,7 @@ import {
   getScrollablePanesContainer,
   getTabsContainer,
 } from '../../core/domUtils';
-import { getCurrentSidebarPanes, refreshPanesElementsCache } from '../panes/paneCache';
+import { getCurrentSidebarPanes, refreshPanesElementsCache, syncPaneIndices } from '../panes/paneCache';
 import { setActivePaneByIndex } from '../panes/paneNavigation';
 import { observePaneForResize } from '../panes/paneResize';
 import { updateTabs } from '../tabs/tabs';
@@ -265,19 +265,21 @@ const handleNewPanes = (
 
     if (globalState.alwaysOpenPanesAtBegining) {
       container.insertBefore(newPane, container.firstChild);
+      globalState.cachedPanes.unshift(newPane);
     } else if (activePos !== -1) {
       container.insertBefore(newPane, currentPanes[activePos + 1] ?? null);
+      globalState.cachedPanes.splice(activePos + 1, 0, newPane);
     }
   }
 
   if (newPanes.size > 0) {
+    syncPaneIndices(globalState.cachedPanes);
     const updatedPanes = getCurrentSidebarPanes(container);
     const newPaneIndex = globalState.alwaysOpenPanesAtBegining ? 0 : activePos + 1;
     setActivePaneByIndex(newPaneIndex, updatedPanes, true);
   }
 
   notifyVirtuosoScroll();
-  refreshPanesElementsCache(getCurrentSidebarPanes(container));
 };
 
 const finalize = (currentPanes: Element[]): void => {
