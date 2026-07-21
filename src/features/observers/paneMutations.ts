@@ -167,6 +167,7 @@ const restoreCachedPaneOrder = (container: HTMLElement): void => {
     container.insertBefore(pane, referenceNode);
   });
   updatePanesOrderInStorage(getCurrentSidebarPanes(container));
+  notifyVirtuosoScroll();
 };
 
 // --- Pane diffing ---
@@ -245,15 +246,9 @@ const handleNewPanes = (
   currentPanes: Element[],
   resizeObserver: ResizeObserver
 ): void => {
-  const pluginSettings = getPluginSettings();
-  const container = getScrollablePanesContainer();
-  if (!container) return;
-
-  if (pluginSettings.autoCloseOldestTab) {
+  if (getPluginSettings().autoCloseOldestTab) {
     enforceMaxTabsLimit();
   }
-
-  globalState.expectedMutations.push(EXPECTED_MUTATIONS.newSidebarItemsReordering);
 
   const activePane = getActivePaneElement(currentPanes);
   const activePos = activePane ? currentPanes.indexOf(activePane) : -1;
@@ -264,22 +259,17 @@ const handleNewPanes = (
     applyPaneDimensions(newPane as HTMLElement);
 
     if (globalState.alwaysOpenPanesAtBegining) {
-      container.insertBefore(newPane, container.firstChild);
       globalState.cachedPanes.unshift(newPane);
     } else if (activePos !== -1) {
-      container.insertBefore(newPane, currentPanes[activePos + 1] ?? null);
       globalState.cachedPanes.splice(activePos + 1, 0, newPane);
     }
   }
 
   if (newPanes.size > 0) {
     syncPaneIndices(globalState.cachedPanes);
-    const updatedPanes = getCurrentSidebarPanes(container);
     const newPaneIndex = globalState.alwaysOpenPanesAtBegining ? 0 : activePos + 1;
-    setActivePaneByIndex(newPaneIndex, updatedPanes, true);
+    setActivePaneByIndex(newPaneIndex, globalState.cachedPanes, true);
   }
-
-  notifyVirtuosoScroll();
 };
 
 const finalize = (currentPanes: Element[]): void => {
@@ -402,11 +392,9 @@ export const createPanesMutationObserver = (resizeObserver: ResizeObserver): Mut
     }
 
     // Reorder — restore to cached order
-    if (reorderedPanes.size > 0) {
-      const reorderContainer = getScrollablePanesContainer();
-      if (reorderContainer) {
-        restoreCachedPaneOrder(reorderContainer);
-      }
+    const reorderContainer = getScrollablePanesContainer();
+    if (reorderContainer) {
+      restoreCachedPaneOrder(reorderContainer);
     }
 
     finalize(getCurrentSidebarPanes());
