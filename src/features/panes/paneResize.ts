@@ -1,5 +1,5 @@
 import { APP_SETTINGS_CONFIG } from '../../core/constants';
-import { getPaneIdFromPane } from '../../core/domUtils';
+import { getPaneIdFromPane, getHeaderPaneTitle } from '../../core/domUtils';
 import { globalState } from '../../core/pluginGlobalState';
 import {
   PaneDimensions,
@@ -60,6 +60,15 @@ const flushPendingResizeSaves = debounce(() => {
   pendingResizeSaves.clear();
 }, APP_SETTINGS_CONFIG.resizeStoreDebounceMs);
 
+const queueSizeForTitle = (pane: HTMLElement, dimensions: PaneDimensions): void => {
+  // When a page pane is not completely loaded, it will write size with title.
+  // But after that, it always write size with UUID. After Logseq restart,
+  // the size with UUID may lost when opening the page pane.
+  const title = getHeaderPaneTitle(pane);
+  if (!title) return;
+  pendingResizeSaves.set(title, dimensions);
+};
+
 const queuePaneResizeSave = (pane: HTMLElement, entry: ResizeObserverEntry): void => {
   const pageId = getPaneIdFromPane(pane);
   if (!pageId) return;
@@ -70,6 +79,7 @@ const queuePaneResizeSave = (pane: HTMLElement, entry: ResizeObserverEntry): voi
   const height = Math.round(borderBox?.blockSize ?? entry.target.getBoundingClientRect().height);
   if (width === 0 || height === 0) return;
   pendingResizeSaves.set(pageId, { width, height });
+  queueSizeForTitle(pane, { width, height });
   flushPendingResizeSaves();
 };
 
@@ -94,6 +104,7 @@ const queuePaneWidthSave = (pane: HTMLElement, entry: ResizeObserverEntry): void
   }
 
   pendingResizeSaves.set(pageId, { width });
+  queueSizeForTitle(pane, { width });
   flushPendingResizeSaves();
 };
 

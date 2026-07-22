@@ -197,7 +197,7 @@ const getHeaderPaneTitleParts = (pane: Element): string[] => {
     .filter(Boolean);
 };
 
-const getHeaderPaneTitle = (pane: Element): string | null => {
+export const getHeaderPaneTitle = (pane: Element): string | null => {
   const parts = getHeaderPaneTitleParts(pane);
 
   return parts.length > 0 ? parts.join(' > ') : null;
