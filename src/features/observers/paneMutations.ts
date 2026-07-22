@@ -178,8 +178,8 @@ const handleClose = (closedPanes: Set<Element>, currentPanes: Element[]): void =
   }
 
   debugLog('[PanesMode] handleClose: activeIndex', { before: activeIndex, after: adjustedActiveIndex });
-  if (adjustedActiveIndex !== null && adjustedActiveIndex >= 0) {
-    setActivePaneByIndex(adjustedActiveIndex, currentPanes);
+  if (adjustedActiveIndex !== null) {
+    globalState.currentActivePaneIndex = adjustedActiveIndex;
   }
   globalState.cachedPanes = globalState.cachedPanes.filter(p => !closedPanes.has(p));
 };
@@ -275,6 +275,10 @@ export const createPanesMutationObserver = (resizeObserver: ResizeObserver): Mut
     const reorderContainer = getScrollablePanesContainer();
     if (reorderContainer) {
       restoreCachedPaneOrder(reorderContainer);
+    }
+
+    if (globalState.currentActivePaneIndex !== null) {
+      setActivePaneByIndex(globalState.currentActivePaneIndex, undefined, false, 1, undefined, false, true);
     }
 
     finalize(getCurrentSidebarPanes());
