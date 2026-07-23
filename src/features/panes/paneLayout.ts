@@ -210,19 +210,17 @@ export const applyInitialPaneSizes = (idToPaneMap: Map<string, Element>): void =
 
     if (paneElement.classList.contains('collapsed')) {
       clearPaneDimensions(paneElement);
-
       return;
     }
 
     if (storedDimensions) {
       paneElement.style.width = `${storedDimensions.width}px`;
-      if (shouldFitContent) {
-        paneElement.style.height = 'auto';
-      } else if (hasStoredPaneHeight(storedDimensions)) {
-        paneElement.style.height = `${storedDimensions.height}px`;
-      }
-    } else if (shouldFitContent) {
+    }
+
+    if (shouldFitContent) {
       paneElement.style.height = 'auto';
+    } else if (storedDimensions && hasStoredPaneHeight(storedDimensions)) {
+      paneElement.style.height = `${storedDimensions.height}px`;
     }
   });
 };

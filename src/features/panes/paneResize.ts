@@ -1,5 +1,6 @@
 import { APP_SETTINGS_CONFIG } from '../../core/constants';
 import { getPaneIdFromPane, getHeaderPaneTitle } from '../../core/domUtils';
+import { debugLog } from '../../core/logger';
 import { globalState } from '../../core/pluginGlobalState';
 import {
   PaneDimensions,
@@ -116,35 +117,43 @@ const handleResize = (entries: ResizeObserverEntry[]) => {
     if (pane.id === 'right-sidebar-container') return;
     queueMultiColumnUpdate(pane);
     if (pane.classList.contains('collapsed')) return;
-    if (isBatchResize) return;
-    if (pane.dataset.panesModeFitContent === 'true') {
-      const borderBox = Array.isArray(entry.borderBoxSize)
-        ? entry.borderBoxSize[0]
-        : entry.borderBoxSize;
-      const height = Math.round(
-        borderBox?.blockSize ?? entry.target.getBoundingClientRect().height
-      );
-      const baselineHeight = parseInt(pane.dataset.panesModeFitContentBaselineHeightPx ?? '', 10);
-      const baseline = Number.isFinite(baselineHeight) ? baselineHeight : height;
-      const hasExplicitHeight = Boolean(pane.style.height && pane.style.height !== 'auto');
 
-      if (hasExplicitHeight) {
-        const heightDiff = Math.abs(height - baseline);
-        if (heightDiff >= FIT_CONTENT_HEIGHT_CHANGE_THRESHOLD_PX) {
-          disableFitContentForPane(pane, { restoreStoredDimensions: false });
-        } else {
-          pane.style.height = 'auto';
-          queuePaneWidthSave(pane, entry);
+    const borderBox = Array.isArray(entry.borderBoxSize)
+      ? entry.borderBoxSize[0]
+      : entry.borderBoxSize;
+    const height = Math.round(borderBox?.blockSize ?? entry.target.getBoundingClientRect().height);
 
-          return;
-        }
-      } else {
-        pane.dataset.panesModeFitContentBaselineHeightPx = height.toString();
-        queuePaneWidthSave(pane, entry);
+    debugLog('[PanesMode] handleResize ', {
+      fitContent: pane.dataset.panesModeFitContent,
+      styleHeight: pane.style.height,
+      height: height,
+    });
 
-        return;
-      }
+    if (pane.dataset.panesModeFitContent === 'true' && !pane.dataset.panesModeFitContentBaselineHeightPx) {
+      pane.dataset.panesModeFitContentBaselineHeightPx = height.toString();
+      debugLog(`[PanesMode] set fit content baseline height to ${pane.dataset.panesModeFitContentBaselineHeightPx}`)
+      if (!isBatchResize) queuePaneWidthSave(pane, entry);
+      return;
     }
-    queuePaneResizeSave(pane, entry);
+
+    if (isBatchResize) return;
+
+    if (pane.dataset.panesModeFitContent !== 'true') {
+      queuePaneResizeSave(pane, entry);
+      return;
+    }
+
+    // Fit content
+    const baselineHeight = parseInt(pane.dataset.panesModeFitContentBaselineHeightPx ?? '', 10);
+    const baseline = Number.isFinite(baselineHeight) ? baselineHeight : height;
+    const heightDiff = Math.abs(height - baseline);
+
+    if (heightDiff >= FIT_CONTENT_HEIGHT_CHANGE_THRESHOLD_PX) {
+      disableFitContentForPane(pane, { restoreStoredDimensions: false });
+      queuePaneResizeSave(pane, entry);
+    } else {
+      pane.style.height = 'auto';
+      queuePaneWidthSave(pane, entry);
+    }
   });
 };
