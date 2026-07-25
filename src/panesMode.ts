@@ -298,7 +298,7 @@ const setupPaneObservers = (currentPanes: Element[]) => {
   addScrollListenersToAllPanes();
 
   panesContainerMutationsObserver = createPanesMutationObserver(resizeObserver);
-  startPanesMutationObserver(panesContainerMutationsObserver);
+  startPanesMutationObserver(panesContainerMutationsObserver, resizeObserver);
 
   leftSidebarObserver = initLeftSidebarObserver();
 };

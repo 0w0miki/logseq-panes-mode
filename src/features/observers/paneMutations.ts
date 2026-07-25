@@ -27,7 +27,6 @@ const TAB_SELECTOR = '.panesMode-tab';
 
 let paneOrderSyncInterval: ReturnType<typeof setInterval> | null = null;
 let paneOrderSyncTarget: Element[] | null = null;
-let moduleResizeObserver: ResizeObserver | null = null;
 let containerWatchdogObserver: MutationObserver | null = null;
 let containerWatchdogHost: HTMLElement | null = null;
 let containerWatchdogElement: HTMLElement | null = null;
@@ -197,6 +196,7 @@ const handleNewPanes = (
     activeIndex !== null && activeIndex < globalState.cachedPanes.length ? activeIndex : -1;
 
   for (const newPane of newPanes) {
+    debugLog('[PanesMode] handleNewPanes: new pane', newPane.innerHTML, getPaneIdFromPane(newPane));
     observePaneForResize(resizeObserver, newPane);
     enableFitContentForNewPane(newPane);
     applyPaneDimensions(newPane as HTMLElement);
@@ -227,8 +227,6 @@ const finalize = (currentPanes: Element[]): void => {
 // --- Main observer ---
 
 export const createPanesMutationObserver = (resizeObserver: ResizeObserver): MutationObserver => {
-  moduleResizeObserver = resizeObserver;
-
   return new MutationObserver(() => {
     const currentSidebarPanes = getCurrentSidebarPanes();
     const { newPanes, closedPanes, reorderedPanes } = diffPanes(globalState.cachedPanes, currentSidebarPanes);
@@ -285,12 +283,15 @@ export const createPanesMutationObserver = (resizeObserver: ResizeObserver): Mut
   });
 };
 
-export const startPanesMutationObserver = (observer: MutationObserver): void => {
+export const startPanesMutationObserver = (
+  observer: MutationObserver,
+  resizeObserver: ResizeObserver,
+): void => {
   attachPanesObserver(observer);
-  refreshContainerWatchdog(observer);
+  refreshContainerWatchdog(observer, resizeObserver);
 
   void waitForDomChanges(() => {
-    reconcileMissedPaneChange(observer);
+    reconcileMissedPaneChange(observer, resizeObserver);
   }, 0.5);
 };
 
@@ -318,32 +319,35 @@ const attachPanesObserver = (panesObserver: MutationObserver): HTMLElement | nul
   return panesContainer;
 };
 
-const refreshContainerWatchdog = (panesObserver: MutationObserver): void => {
+const refreshContainerWatchdog = (
+  panesObserver: MutationObserver,
+  resizeObserver: ResizeObserver,
+): void => {
   const panesContainer = getScrollablePanesContainer();
-  const nextWatchdogHost = panesContainer?.parentElement as HTMLElement | null;
-  if (!nextWatchdogHost) return;
+  const containerParent = panesContainer?.parentElement as HTMLElement | null;
+  if (!containerParent) return;
 
   if (!containerWatchdogObserver) {
     containerWatchdogObserver = new MutationObserver(() => {
       if (!globalState.isPanesModeModeActive) return;
 
-      refreshContainerWatchdog(panesObserver);
-      reconcileMissedPaneChange(panesObserver);
+      reconcileMissedPaneChange(panesObserver, resizeObserver);
     });
   }
 
-  if (containerWatchdogHost === nextWatchdogHost) return;
+  if (containerWatchdogHost === containerParent) return;
 
   containerWatchdogObserver.disconnect();
-  containerWatchdogObserver.observe(nextWatchdogHost, { childList: true });
-  containerWatchdogHost = nextWatchdogHost;
+  containerWatchdogObserver.observe(containerParent, { childList: true });
+  containerWatchdogHost = containerParent;
 };
 
-const reconcileMissedPaneChange = (panesObserver: MutationObserver): void => {
+const reconcileMissedPaneChange = (
+  panesObserver: MutationObserver,
+  resizeObserver: ResizeObserver,
+): void => {
   const currentContainer = attachPanesObserver(panesObserver);
   if (!currentContainer) return;
-
-  refreshContainerWatchdog(panesObserver);
 
   const currentPanes = getCurrentSidebarPanes(currentContainer);
   if (!arePanesDifferent(globalState.cachedPanes, currentPanes)) return;
@@ -376,30 +380,18 @@ const reconcileMissedPaneChange = (panesObserver: MutationObserver): void => {
 
   // Position genuinely new panes after the (previously) active pane.
   if (genuinelyNewPanes.length > 0) {
-    if (activeInNewDom) {
-      activeInNewDom.classList.add('selectedPane');
-    }
-
     globalState.expectedMutations.push(EXPECTED_MUTATIONS.newSidebarItemsReordering);
 
-    if (globalState.alwaysOpenPanesAtBegining) {
-      for (let i = genuinelyNewPanes.length - 1; i >= 0; i--) {
-        currentContainer.insertBefore(genuinelyNewPanes[i], currentContainer.firstChild);
-      }
-    } else if (activeInNewDom) {
-      let referenceNode: Element | null = activeInNewDom.nextElementSibling;
-      genuinelyNewPanes.forEach(newPane => {
-        currentContainer.insertBefore(newPane, referenceNode);
-        referenceNode = newPane.nextElementSibling;
-      });
-    }
-
     genuinelyNewPanes.forEach(newPane => {
-      if (moduleResizeObserver) {
-        observePaneForResize(moduleResizeObserver, newPane);
-      }
+      observePaneForResize(resizeObserver, newPane);
       enableFitContentForNewPane(newPane);
       applyPaneDimensions(newPane as HTMLElement);
+
+      if (globalState.alwaysOpenPanesAtBegining) {
+        currentContainer.insertBefore(newPane, currentContainer.firstChild);
+      } else if (activeInNewDom) {
+        currentContainer.insertBefore(newPane, activeInNewDom.nextElementSibling);
+      };
     });
   }
 
@@ -408,20 +400,14 @@ const reconcileMissedPaneChange = (panesObserver: MutationObserver): void => {
   updatePanesOrderInStorage(updatedPanes);
   updateTabs(updatedPanes);
 
+  let activeIndex = -1;
   if (genuinelyNewPanes.length > 0) {
     const lastNewPane = genuinelyNewPanes[genuinelyNewPanes.length - 1];
-    const newPaneIndex = updatedPanes.indexOf(lastNewPane);
-    if (newPaneIndex !== -1) {
-      setActivePaneByIndex(newPaneIndex, updatedPanes, true);
-    }
+    activeIndex = updatedPanes.indexOf(lastNewPane);
   } else if (activeInNewDom) {
-    const activeIndex = updatedPanes.indexOf(activeInNewDom);
-    if (activeIndex !== -1) {
-      setActivePaneByIndex(activeIndex, updatedPanes);
-    }
-  } else if (updatedPanes.length > 0) {
-    setActivePaneByIndex(0, updatedPanes);
+    activeIndex = updatedPanes.indexOf(activeInNewDom);
   }
+  setActivePaneByIndex(activeIndex === -1 ? 0 : activeIndex, updatedPanes);
 
   if (genuinelyNewPanes.length > 0) {
     notifyVirtuosoScroll();
