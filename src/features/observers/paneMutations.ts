@@ -47,7 +47,6 @@ const areTabsSyncedWithPanes = (panes: Element[]): boolean => {
 
   return tabs.every((tab, index) => {
     const paneId = getPaneIdFromPane(panes[index]) || `pane-${index}`;
-
     return tab.dataset.paneId === paneId;
   });
 };
@@ -59,50 +58,39 @@ const ensurePaneOrderAndTabsSync = (newPanesOrder: Element[]): void => {
   paneOrderSyncInterval = setInterval(() => {
     if (!globalState.isPanesModeModeActive) {
       stopPaneOrderSync();
+      return;
+    }
 
+    if (!paneOrderSyncTarget || paneOrderSyncTarget.length === 0) {
+      stopPaneOrderSync();
       return;
     }
 
     const container = getScrollablePanesContainer();
     if (!container) return;
 
-    if (!paneOrderSyncTarget || paneOrderSyncTarget.length === 0) {
-      stopPaneOrderSync();
-
-      return;
-    }
-
-    const existingPanesFromOrder = paneOrderSyncTarget.filter(
-      pane => pane.isConnected && container.contains(pane)
-    );
-
-    if (existingPanesFromOrder.length === 0) {
-      stopPaneOrderSync();
-
-      return;
-    }
-    paneOrderSyncTarget = existingPanesFromOrder;
-
     const currentDomPanes = getCurrentSidebarPanes(container);
-    const panesInPlace = !arePanesDifferent(existingPanesFromOrder, currentDomPanes);
+    const { newPanes, closedPanes, reorderedPanes } = diffPanes(paneOrderSyncTarget, currentDomPanes);
 
-    if (!panesInPlace) {
-      existingPanesFromOrder.forEach((pane, index) => {
-        if (container.children[index] === pane) return;
-        const referenceNode = container.children[index] ?? null;
-        container.insertBefore(pane, referenceNode);
-      });
+    if (newPanes.size > 0 || closedPanes.size > 0) {
+      stopPaneOrderSync();
+      return;
+    }
+
+    if (reorderedPanes.size > 0) {
+      paneOrderSyncTarget = paneOrderSyncTarget.filter(p => currentDomPanes.includes(p));
+      restoreCachedPaneOrder(container);
     }
 
     const updatedPanes = getCurrentSidebarPanes(container);
     const tabsSynced = areTabsSyncedWithPanes(updatedPanes);
-    if (!panesInPlace || !tabsSynced) {
+    if (reorderedPanes.size > 0 || !tabsSynced) {
       refreshPanesElementsCache(updatedPanes);
       updatePanesOrderInStorage(updatedPanes);
       updateTabs(updatedPanes);
     }
 
-    if (!arePanesDifferent(existingPanesFromOrder, updatedPanes) && tabsSynced) {
+    if (!arePanesDifferent(paneOrderSyncTarget, updatedPanes) && tabsSynced) {
       stopPaneOrderSync();
     }
   }, PANE_SYNC_INTERVAL_MS);
