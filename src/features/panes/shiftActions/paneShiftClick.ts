@@ -7,7 +7,6 @@ import {
 import { debugLog } from '../../../core/logger';
 import { globalState, isActivePaneIndexValid } from '../../../core/pluginGlobalState';
 import type { PendingShiftClick } from './types';
-import { waitForDomChanges } from '../../../core/utils';
 import { getCurrentSidebarPanes } from '../paneCache';
 import { setActivePaneByIndex } from '../paneNavigation';
 import { notifyVirtuosoScroll } from '../paneLayout';
@@ -62,11 +61,6 @@ type ShiftClickTarget = {
   candidates?: string[];
   searchSection?: PendingShiftClick['searchSection'];
 };
-
-type PendingSearchFocus = Pick<
-  PendingShiftClick,
-  'targetType' | 'targetId' | 'targetCandidates' | 'searchSection' | 'timestamp'
->;
 
 type ActivePaneContext = Pick<PendingShiftClick, 'activePaneId' | 'activePaneIndex'>;
 
@@ -599,11 +593,7 @@ const getActivePaneContext = (
   return getActivePaneContextFromState();
 };
 
-let pendingSearchFocusTimer: ReturnType<typeof setTimeout> | null = null;
-let pendingSearchFocusRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let searchOpenActivePaneContext: SearchOpenActivePaneContext | null = null;
-const SHIFT_CLICK_FALLBACK_DELAY_MS = 0;
-const SHIFT_CLICK_RETRY_DELAY_MS = 200;
 const SEARCH_OPEN_CONTEXT_TTL_MS = 120_000;
 
 const rememberSearchOpenActivePaneContext = (): void => {
@@ -635,96 +625,6 @@ const shouldRememberSearchOpenContext = (event: KeyboardEvent): boolean => {
   if (!event.metaKey && !event.ctrlKey) return false;
 
   return !event.altKey && !event.shiftKey;
-};
-
-const createPendingSearchFocus = (target: ShiftClickTarget): PendingSearchFocus => ({
-  targetType: target.type,
-  targetId: target.id,
-  targetCandidates: target.candidates ?? [target.id],
-  searchSection: target.searchSection ?? null,
-  timestamp: Date.now(),
-});
-
-const areCurrentPanesSynced = (panes: Element[]): boolean =>
-  panes.length === globalState.cachedPanes.length &&
-  panes.every((pane, index) => pane === globalState.cachedPanes[index]);
-
-const getFocusedPaneFromDocument = (panes: Element[]): Element | null => {
-  const activeElement = parent.document.activeElement as HTMLElement | null;
-  if (!activeElement) return null;
-  const paneElement = activeElement.closest('.sidebar-item') as HTMLElement | null;
-  if (!paneElement) return null;
-
-  return panes.find(pane => pane === paneElement) ?? null;
-};
-
-const focusPaneForSearchTarget = (pending: PendingSearchFocus): boolean => {
-  const container = getScrollablePanesContainer();
-  if (!container) return false;
-  const currentPanes = getCurrentSidebarPanes(container);
-  if (!areCurrentPanesSynced(currentPanes)) {
-    debugLog(DEBUG_PREFIX, 'skip search focus while panes are mutating', {
-      targetType: pending.targetType,
-      targetId: pending.targetId,
-      paneCount: currentPanes.length,
-      cachedPaneCount: globalState.cachedPanes.length,
-    });
-
-    return false;
-  }
-
-  const targetPane =
-    resolveShiftClickTargetPane(
-      {
-        ...pending,
-        activePaneId: null,
-        activePaneIndex: null,
-      },
-      currentPanes
-    ) ?? getFocusedPaneFromDocument(currentPanes);
-  if (!targetPane) {
-    debugLog(DEBUG_PREFIX, 'search focus target pane not found', {
-      targetType: pending.targetType,
-      targetId: pending.targetId,
-      targetCandidates: pending.targetCandidates,
-      searchSection: pending.searchSection,
-    });
-
-    return false;
-  }
-
-  const targetIndex = currentPanes.indexOf(targetPane);
-  if (targetIndex === -1) return false;
-
-  debugLog(DEBUG_PREFIX, 'focus pane from search', {
-    targetType: pending.targetType,
-    targetId: pending.targetId,
-    targetPaneId: getPaneIdFromPane(targetPane),
-    targetIndex,
-  });
-  setActivePaneByIndex(targetIndex, currentPanes, true);
-
-  return true;
-};
-
-const scheduleSearchPaneFocus = (pending: PendingSearchFocus): void => {
-  if (pendingSearchFocusTimer) {
-    clearTimeout(pendingSearchFocusTimer);
-    pendingSearchFocusTimer = null;
-  }
-  if (pendingSearchFocusRetryTimer) {
-    clearTimeout(pendingSearchFocusRetryTimer);
-    pendingSearchFocusRetryTimer = null;
-  }
-
-  pendingSearchFocusTimer = waitForDomChanges(() => {
-    const handled = focusPaneForSearchTarget(pending);
-    if (handled) return;
-
-    pendingSearchFocusRetryTimer = waitForDomChanges(() => {
-      focusPaneForSearchTarget(pending);
-    }, SHIFT_CLICK_RETRY_DELAY_MS / 1000).timeoutId;
-  }, SHIFT_CLICK_FALLBACK_DELAY_MS / 1000).timeoutId;
 };
 
 export const setupShiftClickPaneTracking = (): (() => void) => {
@@ -789,18 +689,7 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
       if (!shiftTarget) return;
 
       setPendingShiftClickFromTarget(target, shiftTarget);
-      return;
     }
-
-    const target = getEventTargetElement(event);
-    if (!target) return;
-
-    const searchTarget = getSearchPaneTarget(target);
-    if (!searchTarget) return;
-
-    const pendingSearchFocus = createPendingSearchFocus(searchTarget);
-    debugLog(DEBUG_PREFIX, 'search click focus pending', pendingSearchFocus);
-    scheduleSearchPaneFocus(pendingSearchFocus);
   };
 
   const handleKeyDown = (event: KeyboardEvent) => {
@@ -845,11 +734,7 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
     if (!searchTarget) return;
 
     if (!event.shiftKey) {
-      const pendingSearchFocus = createPendingSearchFocus(searchTarget);
-      debugLog(DEBUG_PREFIX, 'search enter focus pending', pendingSearchFocus);
-      scheduleSearchPaneFocus(pendingSearchFocus);
       searchOpenActivePaneContext = null;
-
       return;
     }
 
@@ -867,14 +752,6 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
   return () => {
     targetWindow.removeEventListener('click', handleClick, true);
     targetWindow.removeEventListener('keydown', handleKeyDown, true);
-    if (pendingSearchFocusTimer) {
-      clearTimeout(pendingSearchFocusTimer);
-      pendingSearchFocusTimer = null;
-    }
-    if (pendingSearchFocusRetryTimer) {
-      clearTimeout(pendingSearchFocusRetryTimer);
-      pendingSearchFocusRetryTimer = null;
-    }
     searchOpenActivePaneContext = null;
   };
 };
