@@ -62,12 +62,6 @@ type ShiftClickTarget = {
   searchSection?: PendingShiftClick['searchSection'];
 };
 
-type ActivePaneContext = Pick<PendingShiftClick, 'activePaneId' | 'activePaneIndex'>;
-
-type SearchOpenActivePaneContext = ActivePaneContext & {
-  timestamp: number;
-};
-
 const getSearchSectionLabel = (node: HTMLElement): string | null => {
   const text = node.textContent?.trim();
   if (!text) return null;
@@ -593,40 +587,6 @@ const getActivePaneContext = (
   return getActivePaneContextFromState();
 };
 
-let searchOpenActivePaneContext: SearchOpenActivePaneContext | null = null;
-const SEARCH_OPEN_CONTEXT_TTL_MS = 120_000;
-
-const rememberSearchOpenActivePaneContext = (): void => {
-  const activePaneContext = getActivePaneContextFromState();
-  if (!activePaneContext.activePaneId && activePaneContext.activePaneIndex === null) return;
-  searchOpenActivePaneContext = {
-    ...activePaneContext,
-    timestamp: Date.now(),
-  };
-};
-
-const getSearchOpenActivePaneContext = (): ActivePaneContext | null => {
-  if (!searchOpenActivePaneContext) return null;
-  if (Date.now() - searchOpenActivePaneContext.timestamp > SEARCH_OPEN_CONTEXT_TTL_MS) {
-    searchOpenActivePaneContext = null;
-
-    return null;
-  }
-
-  return {
-    activePaneId: searchOpenActivePaneContext.activePaneId,
-    activePaneIndex: searchOpenActivePaneContext.activePaneIndex,
-  };
-};
-
-const shouldRememberSearchOpenContext = (event: KeyboardEvent): boolean => {
-  const key = event.key?.toLowerCase();
-  if (key !== 'p' && key !== 'k') return false;
-  if (!event.metaKey && !event.ctrlKey) return false;
-
-  return !event.altKey && !event.shiftKey;
-};
-
 export const setupShiftClickPaneTracking = (): (() => void) => {
   const getEventTargetElement = (event: Event): HTMLElement | null => {
     const rawTarget = event.target as Element | null;
@@ -639,7 +599,7 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
   const setPendingShiftClickFromTarget = (
     target: HTMLElement,
     shiftTarget: ShiftClickTarget,
-    activePaneContext: ActivePaneContext = getActivePaneContext(target)
+    activePaneContext: Pick<PendingShiftClick, 'activePaneId' | 'activePaneIndex'> = getActivePaneContext(target)
   ): void => {
     const pending: PendingShiftClick = {
       targetType: shiftTarget.type,
@@ -694,27 +654,13 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
 
   const handleKeyDown = (event: KeyboardEvent) => {
     if (!globalState.isPanesModeModeActive) return;
-    if (shouldRememberSearchOpenContext(event)) {
-      rememberSearchOpenActivePaneContext();
-
-      return;
-    }
-    if (event.key === 'Escape') {
-      searchOpenActivePaneContext = null;
-
-      return;
-    }
-    if (!isEnterKey(event)) return;
+    if (!isEnterKey(event) || !event.shiftKey) return;
 
     const target = getEventTargetElement(event);
     const activeElement = parent.document.activeElement as HTMLElement | null;
     const container =
       findSearchContainer(target) ?? findSearchContainer(activeElement) ?? findSearchContainer();
-    if (!container) {
-      searchOpenActivePaneContext = null;
-
-      return;
-    }
+    if (!container) return;
 
     const selectedItem = getSearchSelectedItem(container);
     if (!selectedItem) return;
@@ -733,15 +679,7 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
     const searchTarget = getSearchPaneTarget(selectedItem);
     if (!searchTarget) return;
 
-    if (!event.shiftKey) {
-      searchOpenActivePaneContext = null;
-      return;
-    }
-
-    const activePaneContext =
-      getSearchOpenActivePaneContext() ?? getActivePaneContext(selectedItem);
-    setPendingShiftClickFromTarget(selectedItem, searchTarget, activePaneContext);
-    searchOpenActivePaneContext = null;
+    setPendingShiftClickFromTarget(selectedItem, searchTarget, getActivePaneContextFromState());
   };
 
   const targetWindow = parent.window ?? window;
@@ -752,6 +690,5 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
   return () => {
     targetWindow.removeEventListener('click', handleClick, true);
     targetWindow.removeEventListener('keydown', handleKeyDown, true);
-    searchOpenActivePaneContext = null;
   };
 };
