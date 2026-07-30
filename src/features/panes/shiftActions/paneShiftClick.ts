@@ -200,29 +200,6 @@ const getSearchItems = (container: HTMLElement): { all: HTMLElement[]; leaf: HTM
   };
 };
 
-const findInlineOpacitySearchItem = (container?: HTMLElement | null): HTMLElement | null => {
-  const containerSelector = getSearchContainerSelector();
-  const itemSelector = getSearchItemSelector();
-  const containers = container
-    ? [container]
-    : Array.from(parent.document.querySelectorAll<HTMLElement>(containerSelector));
-  for (const searchContainer of containers) {
-    const direct = searchContainer.querySelector<HTMLElement>(
-      `${itemSelector}[style*="opacity: 1"], ${itemSelector}[style*="opacity:1"]`
-    );
-    if (direct) return direct;
-    const inlineElement = searchContainer.querySelector<HTMLElement>(
-      '[style*="opacity: 1"], [style*="opacity:1"]'
-    );
-    if (inlineElement) {
-      const closestItem = inlineElement.closest(itemSelector) as HTMLElement | null;
-      if (closestItem && searchContainer.contains(closestItem)) return closestItem;
-    }
-  }
-
-  return null;
-};
-
 const findSearchItemForElement = (
   element: HTMLElement | null,
   container: HTMLElement,
@@ -291,94 +268,18 @@ const getSearchSelectedItem = (container: HTMLElement): HTMLElement | null => {
 
   const explicitSelected = findExplicitSelectedSearchItem(container, all, leaf);
   if (explicitSelected) {
-    debugLog(DEBUG_PREFIX, 'search selection from selected attribute', {
-      opacity: getOpacityValue(explicitSelected),
-      sectionType: getSearchSectionType(explicitSelected, container),
-    });
-
+    debugLog(DEBUG_PREFIX, 'search selection from selected attribute');
     return explicitSelected;
-  }
-
-  const inlineSelected = findInlineOpacitySearchItem(container) ?? findInlineOpacitySearchItem();
-  if (inlineSelected) {
-    const inlineContainer = findSearchContainer(inlineSelected) ?? container;
-    const inlineItems =
-      inlineContainer === container ? { all, leaf } : getSearchItems(inlineContainer);
-    const resolvedInlineSelected =
-      resolveSearchItemElement(
-        inlineSelected,
-        inlineContainer,
-        inlineItems.all,
-        inlineItems.leaf
-      ) ?? inlineSelected;
-    debugLog(DEBUG_PREFIX, 'search selection from inline opacity', {
-      opacity: getOpacityValue(resolvedInlineSelected),
-      sectionType: getSearchSectionType(resolvedInlineSelected, inlineContainer),
-    });
-
-    return resolvedInlineSelected;
-  }
-
-  const activeElement = parent.document.activeElement as HTMLElement | null;
-  const fromActive = findSearchItemForElement(activeElement, container, leaf);
-  if (fromActive) {
-    debugLog(DEBUG_PREFIX, 'search selection from active element', {
-      opacity: getOpacityValue(fromActive),
-      sectionType: getSearchSectionType(fromActive, container),
-    });
-
-    return fromActive;
   }
 
   const classOpacityItem = all.find(item => item.classList.contains('opacity-100'));
   if (classOpacityItem) {
     const resolvedItem = leaf.find(item => classOpacityItem.contains(item)) ?? classOpacityItem;
-    debugLog(DEBUG_PREFIX, 'search selection from opacity-100 class', {
-      opacity: getOpacityValue(resolvedItem),
-      sectionType: getSearchSectionType(resolvedItem, container),
-    });
-
+    debugLog(DEBUG_PREFIX, 'search selection from opacity-100 class');
     return resolvedItem;
   }
 
-  let maxOpacityItem = leaf[0];
-  let maxOpacityValue = getOpacityValue(maxOpacityItem);
-  leaf.slice(1).forEach(item => {
-    const value = getOpacityValue(item);
-    if (value > maxOpacityValue) {
-      maxOpacityValue = value;
-      maxOpacityItem = item;
-    }
-  });
-  if (maxOpacityItem) {
-    debugLog(DEBUG_PREFIX, 'search selection from max opacity', {
-      opacity: maxOpacityValue,
-      sectionType: getSearchSectionType(maxOpacityItem, container),
-    });
-
-    return maxOpacityItem;
-  }
-
-  const highlightedItems = Array.from(
-    container.querySelectorAll<HTMLElement>(SEARCH_HIGHLIGHTED_SPAN_SELECTOR)
-  )
-    .map(span => findSearchItemForElement(span, container, leaf))
-    .filter(Boolean) as HTMLElement[];
-  const highlightedSelected = highlightedItems[0];
-  if (highlightedSelected) {
-    debugLog(DEBUG_PREFIX, 'search selection from highlights', {
-      opacity: getOpacityValue(highlightedSelected),
-      sectionType: getSearchSectionType(highlightedSelected, container),
-    });
-
-    return highlightedSelected;
-  }
-
-  debugLog(DEBUG_PREFIX, 'search selection fallback', {
-    opacity: getOpacityValue(leaf[0]),
-    sectionType: getSearchSectionType(leaf[0], container),
-  });
-
+  debugLog(DEBUG_PREFIX, 'search selection fallback');
   return leaf[0];
 };
 
@@ -591,7 +492,7 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
   const getEventTargetElement = (event: Event): HTMLElement | null => {
     const rawTarget = event.target as Element | null;
 
-    return rawTarget && rawTarget.nodeType === 1
+    return rawTarget && rawTarget.nodeType === Node.ELEMENT_NODE
       ? (rawTarget as HTMLElement)
       : (rawTarget?.parentElement ?? null);
   };
