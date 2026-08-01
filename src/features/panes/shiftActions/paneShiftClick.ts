@@ -309,6 +309,15 @@ const getSearchPaneTarget = (target: HTMLElement): ShiftClickTarget | null => {
   const sectionType = getSearchSectionType(item, container);
   const preferPage = sectionType === 'page' || sectionType === 'recent';
 
+  debugLog(DEBUG_PREFIX, 'search enter selection', {
+    tag: item.tagName,
+    className: item.className,
+    sectionType: sectionType,
+    opacity: getOpacityValue(item),
+    pageText: getSearchItemText(item),
+    blockText: getSearchBlockText(item),
+  });
+
   if (sectionType === 'block') {
     const blockText = getSearchBlockText(item);
     if (!blockText) return null;
@@ -557,25 +566,11 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
     if (!globalState.isPanesModeModeActive) return;
     if (!isEnterKey(event) || !event.shiftKey) return;
 
-    const target = getEventTargetElement(event);
-    const activeElement = parent.document.activeElement as HTMLElement | null;
-    const container =
-      findSearchContainer(target) ?? findSearchContainer(activeElement) ?? findSearchContainer();
+    const container = findSearchContainer();
     if (!container) return;
 
     const selectedItem = getSearchSelectedItem(container);
     if (!selectedItem) return;
-
-    const selectionContainer = findSearchContainer(selectedItem) ?? container;
-    const sectionType = getSearchSectionType(selectedItem, selectionContainer);
-    debugLog(DEBUG_PREFIX, 'search enter selection', {
-      tag: selectedItem.tagName,
-      className: selectedItem.className,
-      sectionType,
-      opacity: getOpacityValue(selectedItem),
-      pageText: getSearchItemText(selectedItem),
-      blockText: getSearchBlockText(selectedItem),
-    });
 
     const searchTarget = getSearchPaneTarget(selectedItem);
     if (!searchTarget) return;
