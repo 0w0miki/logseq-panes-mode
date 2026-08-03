@@ -1,4 +1,3 @@
-// AI slop
 import { APP_SETTINGS_CONFIG } from '../../../core/constants';
 import {
   getPaneIdFromPane,
@@ -177,12 +176,7 @@ const findSearchContainer = (target?: HTMLElement | null): HTMLElement | null =>
   );
 };
 
-const isEnterKey = (event: KeyboardEvent): boolean =>
-  event.key === 'Enter' ||
-  event.key === 'NumpadEnter' ||
-  event.code === 'Enter' ||
-  event.code === 'NumpadEnter' ||
-  event.key === 'Return';
+const isEnterKey = (event: KeyboardEvent): boolean => event.key === 'Enter';
 
 const getSearchItems = (container: HTMLElement): { all: HTMLElement[]; leaf: HTMLElement[] } => {
   const itemSelector = getSearchItemSelector();
@@ -306,8 +300,7 @@ const getSearchPaneTarget = (target: HTMLElement): ShiftClickTarget | null => {
   if (!container) return null;
   const item = findSearchItem(target, container);
   if (!item) return null;
-  const sectionType = getSearchSectionType(item, container);
-  const preferPage = sectionType === 'page' || sectionType === 'recent';
+  const sectionType = getSearchSectionType(item, container) ?? 'page';
 
   debugLog(DEBUG_PREFIX, 'search enter selection', {
     tag: item.tagName,
@@ -337,7 +330,7 @@ const getSearchPaneTarget = (target: HTMLElement): ShiftClickTarget | null => {
     type: 'page',
     id: text,
     candidates: [text],
-    searchSection: preferPage ? (sectionType ?? 'page') : (sectionType ?? 'page'),
+    searchSection: sectionType,
   };
 };
 
@@ -507,9 +500,8 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
   };
 
   const setPendingShiftClickFromTarget = (
-    target: HTMLElement,
     shiftTarget: ShiftClickTarget,
-    activePaneContext: Pick<PendingShiftClick, 'activePaneId' | 'activePaneIndex'> = getActivePaneContext(target)
+    activePaneContext: Pick<PendingShiftClick, 'activePaneId' | 'activePaneIndex'>,
   ): void => {
     const pending: PendingShiftClick = {
       targetType: shiftTarget.type,
@@ -558,7 +550,7 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
       const shiftTarget = getShiftClickTarget(target);
       if (!shiftTarget) return;
 
-      setPendingShiftClickFromTarget(target, shiftTarget);
+      setPendingShiftClickFromTarget(shiftTarget, getActivePaneContext(target));
     }
   };
 
@@ -575,7 +567,7 @@ export const setupShiftClickPaneTracking = (): (() => void) => {
     const searchTarget = getSearchPaneTarget(selectedItem);
     if (!searchTarget) return;
 
-    setPendingShiftClickFromTarget(selectedItem, searchTarget, getActivePaneContextFromState());
+    setPendingShiftClickFromTarget(searchTarget, getActivePaneContextFromState());
   };
 
   const targetWindow = parent.window ?? window;
