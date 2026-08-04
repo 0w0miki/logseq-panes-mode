@@ -272,11 +272,11 @@ body.panesMode-active {
     border-color: var(--panesMode-active-pane-border-color, #6e5f7b);
   }
 
-  .doubleRightSidebar {
+  .panes-sidebar-dual {
     width: calc(100% - var(--ls-left-sidebar-width)) !important;
     max-width: calc(100% - var(--ls-left-sidebar-width));
   }
-  .fullRightSidebar {
+  .panes-sidebar-full {
     width: 100% !important;
     max-width: 100%;
   }

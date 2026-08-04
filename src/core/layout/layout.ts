@@ -266,14 +266,14 @@ const getLeftLayoutElements = (): LeftLayoutElements => {
   };
 };
 
-const applyLeftSideHidden = (
+const applyMainContentHidden = (
   leftSide: HTMLElement,
   rightSidebar: HTMLElement,
   mainContent: HTMLElement | null,
   leftSidebarWidth: number,
   isLeftSideBarOpen: boolean
 ): void => {
-  const rightSideClassToAdd = isLeftSideBarOpen ? 'doubleRightSidebar' : 'fullRightSidebar';
+  const rightSideClassToAdd = isLeftSideBarOpen ? 'panes-sidebar-dual' : 'panes-sidebar-full';
   rightSidebar.classList.add(rightSideClassToAdd);
 
   const newLeftSideWidth = isLeftSideBarOpen ? leftSidebarWidth : 0;
@@ -284,13 +284,13 @@ const applyLeftSideHidden = (
   }
 };
 
-const applyLeftSideVisible = (
+const applyMainContentVisible = (
   leftSide: HTMLElement,
   rightSidebar: HTMLElement | null,
   leftSideNewWidth: number,
   isLeftSidebarOpen: boolean
 ): void => {
-  const rigthSidebarClassToRemove = isLeftSidebarOpen ? 'doubleRightSidebar' : 'fullRightSidebar';
+  const rigthSidebarClassToRemove = isLeftSidebarOpen ? 'panes-sidebar-dual' : 'panes-sidebar-full';
   rightSidebar?.classList.remove(rigthSidebarClassToRemove);
 
   leftSide.style.cssText = `width: ${leftSideNewWidth}px;`;
@@ -304,7 +304,7 @@ const setMainContentVisible = (mainContent: HTMLElement | null): void => {
   }, 0.25);
 };
 
-export const hideLeftSide = (): void => {
+export const hideMainContent = (): void => {
   const { leftSide, mainContent, leftSidebar, rightSidebar } = getLeftLayoutElements();
   const isMainContentHidden = mainContent?.style.display === 'none';
   if (!leftSide || isMainContentHidden || !rightSidebar) return;
@@ -317,12 +317,12 @@ export const hideLeftSide = (): void => {
     : leftSideCurrentWidth;
   writeOriginalLeftSideWithoutBar(leftSideWithoutBar);
 
-  applyLeftSideHidden(leftSide, rightSidebar, mainContent, leftSidebarWidth, isLeftSideBarOpen);
+  applyMainContentHidden(leftSide, rightSidebar, mainContent, leftSidebarWidth, isLeftSideBarOpen);
   syncNativeRightWindowControlsClass(true);
   manageActionButtonsPosition();
 };
 
-export const showLeftSide = (): void => {
+export const showMainContent = (): void => {
   const { leftSide, mainContent, leftSidebar, rightSidebar } = getLeftLayoutElements();
   const mainContentVisible = mainContent?.style.display !== 'none';
   if (!leftSide || mainContentVisible) return;
@@ -334,7 +334,7 @@ export const showLeftSide = (): void => {
     ? originalWidth + leftSidebarWidthValue
     : originalWidth;
 
-  applyLeftSideVisible(leftSide, rightSidebar, leftSideNewWidth, isLeftSidebarOpen);
+  applyMainContentVisible(leftSide, rightSidebar, leftSideNewWidth, isLeftSidebarOpen);
   syncNativeRightWindowControlsClass(false);
   manageActionButtonsPosition();
   setMainContentVisible(mainContent);
@@ -504,8 +504,8 @@ export const manageActionButtonsPosition = (): void => {
   if (!tabsContainer) return;
 
   const isLeftSideOpen =
-    !rightSidebar.classList.contains('fullRightSidebar') &&
-    !rightSidebar.classList.contains('doubleRightSidebar');
+    !rightSidebar.classList.contains('panes-sidebar-full') &&
+    !rightSidebar.classList.contains('panes-sidebar-dual');
 
   if (isLeftSideOpen) {
     placeButtonsInLeftHeader(tabsContainer);

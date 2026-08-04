@@ -13,8 +13,8 @@ const withSize = (svg: string, size: number): string =>
 export const toolbarIcons = {
   logo: (size: number) => withSize(logoSvg, size),
   reset: (size: number) => withSize(resetSvg, size),
-  hideLeft: (size: number) => withSize(hideLeftSvg, size),
-  showLeft: (size: number) => withSize(showLeftSvg, size),
+  hideMain: (size: number) => withSize(hideLeftSvg, size),
+  showMain: (size: number) => withSize(showLeftSvg, size),
   cleanLeft: (size: number) => withSize(cleanLeftSvg, size),
   cleanRight: (size: number) => withSize(cleanRightSvg, size),
   cleanUnused: (size: number) => withSize(cleanUnusedSvg, size),

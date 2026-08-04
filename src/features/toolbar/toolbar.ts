@@ -10,8 +10,8 @@ export const registerToolbarUIItems = (): void => {
     });
 
   registerUIItem('toolbar', 'PanesMode_mode_on_off', toolbarButtons.togglePanesMode);
-  registerUIItem('toolbar', 'Hide_left_sidebar', toolbarButtons.hideLeft);
-  registerUIItem('toolbar', 'Show_left_sidebar', toolbarButtons.showLeft);
+  registerUIItem('toolbar', 'Hide_main_content', toolbarButtons.hideMain);
+  registerUIItem('toolbar', 'Show_main_content', toolbarButtons.showMain);
   registerUIItem('toolbar', 'Close_unused_panes', toolbarButtons.cleanUnused);
   registerUIItem('toolbar', 'Close_panes_to_the_right', toolbarButtons.cleanRight);
   registerUIItem('toolbar', 'Close_panes_to_the_left', toolbarButtons.cleanLeft);
@@ -38,15 +38,15 @@ const toolbarButtons = {
     toolbarIcons.logo(TOOLBAR_ICON_SIZE_PX),
     'Toggle PanesMode'
   ),
-  hideLeft: buildToolbarButtonTemplate(
-    'hideLeftSide',
-    toolbarIcons.hideLeft(TOOLBAR_ICON_SIZE_PX),
-    'Hide left sidebar'
+  hideMain: buildToolbarButtonTemplate(
+    'hideMainContent',
+    toolbarIcons.hideMain(TOOLBAR_ICON_SIZE_PX),
+    'Hide main content'
   ),
-  showLeft: buildToolbarButtonTemplate(
-    'showLeftSide',
-    toolbarIcons.showLeft(TOOLBAR_ICON_SIZE_PX),
-    'Show left sidebar'
+  showMain: buildToolbarButtonTemplate(
+    'showMainContent',
+    toolbarIcons.showMain(TOOLBAR_ICON_SIZE_PX),
+    'Show main content'
   ),
   cleanUnused: buildToolbarButtonTemplate(
     'cleanUnusedPanes',

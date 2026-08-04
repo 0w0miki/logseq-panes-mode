@@ -3,8 +3,8 @@ import { APP_SETTINGS_CONFIG } from './core/constants';
 import {
   applyPanesModeStyles,
   clearInjectedStyles,
-  hideLeftSide,
-  showLeftSide,
+  hideMainContent,
+  showMainContent,
   manageActionButtonsPosition,
   restoreActionButtonsToHeader,
   initCustomSidebarResize,
@@ -153,13 +153,13 @@ const registerModelHandlers = (resetSettings: () => Promise<void>) => {
       if (!globalState.isPanesModeModeActive) return;
       cleanUnusedPanes(updateTabs);
     },
-    async hideLeftSide() {
+    async hideMainContent() {
       if (!globalState.isPanesModeModeActive) return;
-      hideLeftSide();
+      hideMainContent();
     },
-    async showLeftSide() {
+    async showMainContent() {
       if (!globalState.isPanesModeModeActive) return;
-      showLeftSide();
+      showMainContent();
     },
     async syncPanesOrder() {
       if (!globalState.isPanesModeModeActive) return;
@@ -371,10 +371,10 @@ const resetSidebarLayout = () => {
   const mainContent = getMainContent();
 
   if (mainContent?.style.display === 'none') {
-    showLeftSide();
+    showMainContent();
   }
 
-  rightSidebar?.classList.remove('fullRightSidebar', 'doubleRightSidebar');
+  rightSidebar?.classList.remove('panes-sidebar-full', 'panes-sidebar-dual');
   restoreActionButtonsToHeader();
 };
 

@@ -15,9 +15,9 @@ export const initLeftSidebarObserver = (): MutationObserver | null => {
       if (mutation.type !== 'attributes' || mutation.attributeName !== 'class') return;
       const sidebarElement = mutation.target as HTMLElement;
       const isLeftSideBarOpen = sidebarElement.classList.contains('is-open');
-      const isLeftSidebarStateChanged = isLeftSideBarOpen !== isLeftSidebarOpenCached;
-      if (!isLeftSidebarStateChanged) return;
+      if (!isLeftSideBarOpen !== isLeftSidebarOpenCached) return;
       isLeftSidebarOpenCached = isLeftSideBarOpen;
+
       const rightSidebar = parent.document.querySelector(
         LOGSEQ_UI_SELECTORS.rightSidebar
       ) as HTMLElement;
@@ -26,15 +26,15 @@ export const initLeftSidebarObserver = (): MutationObserver | null => {
       );
       if (!isRightSidebarOpen) return;
       const isRightSidebarExtended =
-        rightSidebar.classList.contains('fullRightSidebar') ||
-        rightSidebar.classList.contains('doubleRightSidebar');
+        rightSidebar.classList.contains('panes-sidebar-full') ||
+        rightSidebar.classList.contains('panes-sidebar-dual');
       if (!isRightSidebarExtended) return;
       if (isLeftSideBarOpen) {
-        rightSidebar.classList.remove('fullRightSidebar');
-        rightSidebar.classList.add('doubleRightSidebar');
+        rightSidebar.classList.remove('panes-sidebar-full');
+        rightSidebar.classList.add('panes-sidebar-dual');
       } else {
-        rightSidebar.classList.remove('doubleRightSidebar');
-        rightSidebar.classList.add('fullRightSidebar');
+        rightSidebar.classList.remove('panes-sidebar-dual');
+        rightSidebar.classList.add('panes-sidebar-full');
       }
       manageActionButtonsPosition();
     });
