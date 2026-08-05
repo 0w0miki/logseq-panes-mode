@@ -211,8 +211,8 @@ export const setActivePaneByIndex = (
 
   globalState.currentActivePaneIndex = desiredPaneIndex;
 
+  addToLastActivePanes(desiredPaneIndex, panes);
   if (!isSamePane) {
     updateActiveTab();
-    addToLastActivePanes(desiredPaneIndex, panes);
   }
 };
