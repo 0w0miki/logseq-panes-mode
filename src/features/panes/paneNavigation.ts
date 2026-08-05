@@ -3,7 +3,7 @@ import { getTabsContainer, getScrollablePanesContainer } from '../../core/domUti
 import { getPluginSettings } from '../../core/pluginSettings';
 import { globalState } from '../../core/pluginGlobalState';
 import { getCurrentSidebarPanes } from './paneCache';
-import { updateLastActivePanesInStorage } from './panePersistence';
+import { addToLastActivePanes } from './panePersistence';
 
 const scrollQueue: Array<{ targetLeft: number; duration: number }> = [];
 let isScrolling = false;
@@ -213,6 +213,6 @@ export const setActivePaneByIndex = (
 
   if (!isSamePane) {
     updateActiveTab();
-    updateLastActivePanesInStorage(desiredPaneIndex, panes);
+    addToLastActivePanes(desiredPaneIndex, panes);
   }
 };

@@ -18,7 +18,7 @@ import {
   enableFitContentForNewPane,
   notifyVirtuosoScroll,
 } from '../panes/paneLayout';
-import { updatePanesOrderInStorage } from '../panes/panePersistence';
+import { removeFromLastActivePanes, updatePanesOrderInStorage } from '../panes/panePersistence';
 import { EXPECTED_MUTATIONS } from './types';
 import { getPluginSettings } from '../../core/pluginSettings';
 
@@ -169,6 +169,10 @@ const handleClose = (closedPanes: Set<Element>, currentPanes: Element[]): void =
     globalState.currentActivePaneIndex = adjustedActiveIndex;
   }
   globalState.cachedPanes = globalState.cachedPanes.filter(p => !closedPanes.has(p));
+  for (const closedPane of closedPanes) {
+    const closedPaneId = getPaneIdFromPane(closedPane);
+    if (closedPaneId) removeFromLastActivePanes(closedPaneId);
+  }
 };
 
 const handleNewPanes = (

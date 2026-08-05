@@ -1,6 +1,6 @@
 import { getPaneCloseButton, getPaneIdFromPane } from '../../core/domUtils';
 import { isActivePaneIndexValid, globalState } from '../../core/pluginGlobalState';
-import { readLastActivePanesFromStorage } from '../../core/storage';
+import { getLastActivePanes } from './panePersistence';
 import { getCurrentSidebarPanes, refreshPanesElementsCache } from './paneCache';
 import {
   applyPaneDimensions,
@@ -83,7 +83,7 @@ export const enforceMaxTabsLimit = (excludePageId?: string): void => {
   if (!settings.autoCloseOldestTab) return;
   const panes = getCurrentSidebarPanes();
   if (panes.length <= globalState.maxTabs) return;
-  const lastActivePanesIds = readLastActivePanesFromStorage();
+  const lastActivePanesIds = getLastActivePanes();
   const oldestPaneId = lastActivePanesIds[0];
   const indexToClose =
     oldestPaneId !== undefined
@@ -102,7 +102,7 @@ export const enforceMaxTabsLimit = (excludePageId?: string): void => {
 };
 
 export const cleanUnusedPanes = (updateTabs: (panes?: Element[]) => void) => {
-  const lastActivePanesIds = readLastActivePanesFromStorage();
+  const lastActivePanesIds = getLastActivePanes();
   if (!lastActivePanesIds || lastActivePanesIds.length === 0) {
     refreshTabsFromCurrentPanes(updateTabs);
 

@@ -16,7 +16,19 @@ export const updatePanesOrderInStorage = (currentSidebarPanes?: Element[]): void
   writePanesOrderToStorage(newPanesOrder);
 };
 
-export const updateLastActivePanesInStorage = (
+export const getInitialPanesOrder = (): string[] => readPanesOrderFromStorage();
+
+let lastActivePanesCache: string[] | null = null;
+
+export const getLastActivePanes = (): string[] => {
+  if (lastActivePanesCache === null) {
+    lastActivePanesCache = readLastActivePanesFromStorage();
+  }
+
+  return lastActivePanesCache;
+};
+
+export const addToLastActivePanes = (
   activePaneIndex?: number,
   currentSidebarPanes?: Element[]
 ): void => {
@@ -29,41 +41,25 @@ export const updateLastActivePanesInStorage = (
   const currentPaneId = getPaneIdFromPane(currentPane);
   if (!currentPaneId) return;
 
-  const currentLastActivePanes = getLastActivePanesFromCache();
+  const current = getLastActivePanes();
 
-  if (currentLastActivePanes[currentLastActivePanes.length - 1] === currentPaneId) return;
+  if (current[current.length - 1] === currentPaneId) return;
 
-  const panesToStore = currentLastActivePanes.filter(paneId => paneId !== currentPaneId);
-  if (panesToStore.length >= globalState.maxTabs) {
-    panesToStore.shift();
-  }
-  panesToStore.push(currentPaneId);
+  lastActivePanesCache = current.filter(id => id !== currentPaneId);
+  lastActivePanesCache.push(currentPaneId);
 
-  lastActivePanesCache = panesToStore;
-  debouncedWriteLastActive(panesToStore);
+  debouncedWriteLastActive(lastActivePanesCache.slice(-globalState.maxTabs));
+};
+
+export const removeFromLastActivePanes = (paneId: string): void => {
+  if (lastActivePanesCache === null) return;
+  lastActivePanesCache = lastActivePanesCache.filter(id => id !== paneId);
 };
 
 export const invalidateLastActivePanesCache = (): void => {
   lastActivePanesCache = null;
 };
 
-export const getInitialPanesOrder = (): string[] => readPanesOrderFromStorage();
-
-let lastActivePanesCache: string[] | null = null;
-
-const getLastActivePanesFromCache = (): string[] => {
-  if (lastActivePanesCache === null) {
-    lastActivePanesCache = readLastActivePanesFromStorage();
-  }
-
-  return lastActivePanesCache;
-};
-
-const writeLastActivePanesWithCache = (panes: string[]): void => {
-  lastActivePanesCache = panes;
-  writeLastActiveToStorage(panes);
-};
-
-const debouncedWriteLastActive = debounce((panes: string[]) => {
-  writeLastActivePanesWithCache(panes);
+const debouncedWriteLastActive = debounce((topIds: string[]) => {
+  writeLastActiveToStorage(topIds);
 }, 300);
