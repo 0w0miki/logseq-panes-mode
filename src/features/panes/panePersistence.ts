@@ -23,6 +23,12 @@ let lastActivePanesCache: string[] | null = null;
 export const getLastActivePanes = (): string[] => {
   if (lastActivePanesCache === null) {
     lastActivePanesCache = readLastActivePanesFromStorage();
+
+    const currentPaneIds = getCurrentSidebarPanes().map(pane => getPaneIdFromPane(pane)).filter(Boolean) as string[];
+    const missingIds = currentPaneIds.filter(id => !lastActivePanesCache.includes(id));
+    if (missingIds.length > 0) {
+      lastActivePanesCache = missingIds.concat(lastActivePanesCache);
+    }
   }
 
   return lastActivePanesCache;
