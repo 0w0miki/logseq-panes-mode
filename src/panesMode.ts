@@ -5,6 +5,7 @@ import {
   clearInjectedStyles,
   hideMainContent,
   showMainContent,
+  toggleMainContent,
   manageActionButtonsPosition,
   restoreActionButtonsToHeader,
   initCustomSidebarResize,
@@ -152,6 +153,10 @@ const registerModelHandlers = (resetSettings: () => Promise<void>) => {
     async showMainContent() {
       if (!globalState.isPanesModeModeActive) return;
       showMainContent();
+    },
+    async toggleMainContent() {
+      if (!globalState.isPanesModeModeActive) return;
+      toggleMainContent();
     },
     async syncPanesOrder() {
       if (!globalState.isPanesModeModeActive) return;

@@ -10,8 +10,7 @@ export const registerToolbarUIItems = (): void => {
     });
 
   registerUIItem('toolbar', 'PanesMode_mode_on_off', toolbarButtons.togglePanesMode);
-  registerUIItem('toolbar', 'Hide_main_content', toolbarButtons.hideMain);
-  registerUIItem('toolbar', 'Show_main_content', toolbarButtons.showMain);
+  registerUIItem('toolbar', 'Toggle_main_content', toolbarButtons.toggleMain);
   registerUIItem('toolbar', 'Close_unused_panes', toolbarButtons.cleanUnused);
   registerUIItem('toolbar', 'Reset_PanesMode_settings', toolbarButtons.resetSettings);
   registerUIItem('toolbar', 'Sync_panes_order', toolbarButtons.syncOrder);
@@ -36,15 +35,10 @@ const toolbarButtons = {
     toolbarIcons.logo(TOOLBAR_ICON_SIZE_PX),
     'Toggle PanesMode'
   ),
-  hideMain: buildToolbarButtonTemplate(
-    'hideMainContent',
+  toggleMain: buildToolbarButtonTemplate(
+    'toggleMainContent',
     toolbarIcons.hideMain(TOOLBAR_ICON_SIZE_PX),
-    'Hide main content'
-  ),
-  showMain: buildToolbarButtonTemplate(
-    'showMainContent',
-    toolbarIcons.showMain(TOOLBAR_ICON_SIZE_PX),
-    'Show main content'
+    'Toggle main content'
   ),
   cleanUnused: buildToolbarButtonTemplate(
     'cleanUnusedPanes',

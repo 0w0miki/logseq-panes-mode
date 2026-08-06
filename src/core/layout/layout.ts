@@ -340,6 +340,16 @@ export const showMainContent = (): void => {
   setMainContentVisible(mainContent);
 };
 
+export const toggleMainContent = (): void => {
+  const { mainContent, rightSidebar } = getLeftLayoutElements();
+  const isHidden = mainContent?.style.display === 'none';
+  if (!isHidden || !rightSidebar) {
+    hideMainContent();
+  } else {
+    showMainContent();
+  }
+};
+
 // --- Action buttons placement ---
 
 const ORIGINAL_ACTION_BUTTONS_CLASSES = 'r flex';
