@@ -102,7 +102,7 @@ export const enforceMaxTabsLimit = (excludePageId?: string): void => {
 };
 
 export const cleanUnusedPanes = (updateTabs: (panes?: Element[]) => void) => {
-  const lastActivePanesIds = getLastActivePanes();
+  const lastActivePanesIds = getLastActivePanes().slice(-globalState.maxTabs);
   if (!lastActivePanesIds || lastActivePanesIds.length === 0) {
     refreshTabsFromCurrentPanes(updateTabs);
 
