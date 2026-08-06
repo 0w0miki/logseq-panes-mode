@@ -13,8 +13,6 @@ export const registerToolbarUIItems = (): void => {
   registerUIItem('toolbar', 'Hide_main_content', toolbarButtons.hideMain);
   registerUIItem('toolbar', 'Show_main_content', toolbarButtons.showMain);
   registerUIItem('toolbar', 'Close_unused_panes', toolbarButtons.cleanUnused);
-  registerUIItem('toolbar', 'Close_panes_to_the_right', toolbarButtons.cleanRight);
-  registerUIItem('toolbar', 'Close_panes_to_the_left', toolbarButtons.cleanLeft);
   registerUIItem('toolbar', 'Reset_PanesMode_settings', toolbarButtons.resetSettings);
   registerUIItem('toolbar', 'Sync_panes_order', toolbarButtons.syncOrder);
 };
@@ -52,16 +50,6 @@ const toolbarButtons = {
     'cleanUnusedPanes',
     toolbarIcons.cleanUnused(TOOLBAR_ICON_SIZE_PX),
     'Clean unused panes'
-  ),
-  cleanRight: buildToolbarButtonTemplate(
-    'cleanRightPanes',
-    toolbarIcons.cleanRight(TOOLBAR_ICON_SIZE_PX),
-    'Clean right panes'
-  ),
-  cleanLeft: buildToolbarButtonTemplate(
-    'cleanLeftPanes',
-    toolbarIcons.cleanLeft(TOOLBAR_ICON_SIZE_PX),
-    'Clean left panes'
   ),
   resetSettings: buildToolbarButtonTemplate(
     'resetPanesModeSettings',

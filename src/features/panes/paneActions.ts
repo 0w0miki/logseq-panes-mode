@@ -70,14 +70,6 @@ export const closePaneByIndexes = (
   void closePaneTargetsSequentially(panesToClose);
 };
 
-export const cleanLeftPanes = (updateTabs: (panes?: Element[]) => void) => {
-  cleanPanesByDirection('left', updateTabs);
-};
-
-export const cleanRightPanes = (updateTabs: (panes?: Element[]) => void) => {
-  cleanPanesByDirection('right', updateTabs);
-};
-
 export const enforceMaxTabsLimit = (excludePageId?: string): void => {
   const settings = getPluginSettings();
   if (!settings.autoCloseOldestTab) return;
@@ -126,32 +118,6 @@ export const cleanUnusedPanes = (updateTabs: (panes?: Element[]) => void) => {
 const cleanupPaneListeners = (pane: Element): void => {
   removeScrollListenerFromPane(pane);
   disconnectPaneCollapseObserver(pane);
-};
-
-const cleanPanesByDirection = (
-  direction: 'left' | 'right',
-  updateTabs: (panes?: Element[]) => void
-) => {
-  const { panes: currentPanes, activeIndex } = getResolvedCurrentPaneState();
-
-  if (currentPanes.length <= globalState.maxTabs || activeIndex === null) {
-    refreshTabsFromCurrentPanes(updateTabs);
-
-    return;
-  }
-
-  const panesToClose = getPaneIndexesToClose(
-    currentPanes.length,
-    activeIndex,
-    globalState.maxTabs,
-    direction
-  );
-
-  if (panesToClose.length > 0) {
-    closePaneByIndexes(panesToClose, updateTabs);
-  } else {
-    refreshTabsFromCurrentPanes(updateTabs);
-  }
 };
 
 const refreshTabsFromCurrentPanes = (updateTabs: (panes?: Element[]) => void) => {
@@ -246,23 +212,4 @@ const getResolvedCurrentPaneState = (): CurrentPaneState => {
     activePane,
     activeIndex: globalState.currentActivePaneIndex,
   };
-};
-
-const getPaneIndexesToClose = (
-  paneCount: number,
-  activeIndex: number,
-  maxTabs: number,
-  direction: 'left' | 'right'
-): number[] => {
-  const numberOfPanesToClose = Math.max(0, paneCount - maxTabs);
-  if (numberOfPanesToClose === 0) return [];
-
-  const leftIndexes = Array.from({ length: activeIndex }, (_, index) => index);
-  const rightIndexes = Array.from(
-    { length: Math.max(0, paneCount - activeIndex - 1) },
-    (_, offset) => paneCount - 1 - offset
-  );
-  const indexesForDirection = direction === 'left' ? leftIndexes : rightIndexes;
-
-  return indexesForDirection.slice(0, numberOfPanesToClose);
 };

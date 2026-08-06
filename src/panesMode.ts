@@ -45,7 +45,7 @@ import {
   initPaneSwitcherModal,
 } from './features/panes/paneSwitcher/paneSwitcher';
 import { cleanupProjects, initProjectsModal } from './features/projects/projects';
-import { cleanLeftPanes, cleanRightPanes, cleanUnusedPanes } from './features/panes/paneActions';
+import { cleanUnusedPanes } from './features/panes/paneActions';
 import { initLeftSidebarObserver } from './features/observers/leftSidebarObserver';
 import {
   getMainContent,
@@ -140,14 +140,6 @@ const registerModelHandlers = (resetSettings: () => Promise<void>) => {
     },
     async resetPanesModeSettings() {
       await resetSettings();
-    },
-    async cleanLeftPanes() {
-      if (!globalState.isPanesModeModeActive) return;
-      cleanLeftPanes(updateTabs);
-    },
-    async cleanRightPanes() {
-      if (!globalState.isPanesModeModeActive) return;
-      cleanRightPanes(updateTabs);
     },
     async cleanUnusedPanes() {
       if (!globalState.isPanesModeModeActive) return;
