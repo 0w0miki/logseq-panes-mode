@@ -7,7 +7,7 @@ export type ResizeState = {
 };
 
 export type LeftLayoutElements = {
-  leftSide: HTMLElement | null;
+  leftContainer: HTMLElement | null;
   mainContent: HTMLElement | null;
   leftSidebar: HTMLElement | null;
   rightSidebar: HTMLElement | null;

@@ -21,20 +21,13 @@ export const writeLastActiveToStorage = (order: string[]): void => {
   persistArray(STORAGE_KEYS.lastActivePanes, order);
 };
 
-export const writeOriginalLeftSideWithoutBar = (width: number): void => {
-  localStorage.setItem(STORAGE_KEYS.originalLeftSideWidth, JSON.stringify(width));
+export const saveMainContentWidth = (width: number): void => {
+  localStorage.setItem(STORAGE_KEYS.originalMainContentWidth, String(width));
 };
 
-export const readOriginalLeftSideWithoutBar = (): number | null => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.originalLeftSideWidth);
-    const parsed = raw ? JSON.parse(raw) : null;
-
-    return parsed;
-  } catch {
-
-    return null;
-  }
+export const loadMainContentWidth = (): number | null => {
+  const raw = localStorage.getItem(STORAGE_KEYS.originalMainContentWidth);
+  return raw ? Number(raw) : null;
 };
 
 export const readPanesDimensionsFromStorage = (): PaneDimensionsRecord =>

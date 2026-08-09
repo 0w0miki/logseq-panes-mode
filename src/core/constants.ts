@@ -1,7 +1,7 @@
 export const STORAGE_KEYS = {
   panesOrder: 'panesMode.panesOrder',
   lastActivePanes: 'panesMode.lastActivePanes',
-  originalLeftSideWidth: 'panesMode.originalLeftSideWidth',
+  originalMainContentWidth: 'panesMode.originalMainContentWidth',
   paneDimensions: 'panesMode.paneDimensions',
   paneFitContentHeight: 'panesMode.paneFitContentHeight',
   paneCollapseOrientation: 'panesMode.paneCollapseOrientation',

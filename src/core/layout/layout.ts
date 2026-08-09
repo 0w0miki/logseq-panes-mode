@@ -11,7 +11,7 @@ import {
 import { globalState } from '../pluginGlobalState';
 import { debugWarn } from '../logger';
 import { waitForDomChanges } from '../utils';
-import { readOriginalLeftSideWithoutBar, writeOriginalLeftSideWithoutBar } from '../storage';
+import { loadMainContentWidth, saveMainContentWidth } from '../storage';
 import layoutStyles from './layout.scss';
 import tabsStyles from '../../features/tabs/tabs.scss';
 import paneSwitcherStyles from '../../features/panes/paneSwitcher/paneSwitcher.scss';
@@ -240,12 +240,12 @@ export const clearInjectedStyles = (): void => {
   logseq.provideStyle({ key: PLUGIN_UI_SELECTORS.customStylesKey, style: '' });
 };
 
-export const syncNativeRightWindowControlsClass = (isLeftSideHidden: boolean): void => {
+export const syncNativeRightWindowControlsClass = (isMainContentHidden: boolean): void => {
   parent.document.body.classList.toggle(
     RIGHT_WINDOW_CONTROLS_CLASS,
     globalState.isPanesModeModeActive &&
       (globalState.isWindows || globalState.isLinux) &&
-      isLeftSideHidden
+      isMainContentHidden
   );
 };
 
@@ -259,7 +259,7 @@ const getLeftSidebarWidthValue = (): number => {
 
 const getLeftLayoutElements = (): LeftLayoutElements => {
   return {
-    leftSide: getLeftContainer(),
+    leftContainer: getLeftContainer(),
     mainContent: getMainContent(),
     leftSidebar: getLeftSidebar(),
     rightSidebar: getRightSidebar(),
@@ -267,7 +267,7 @@ const getLeftLayoutElements = (): LeftLayoutElements => {
 };
 
 const applyMainContentHidden = (
-  leftSide: HTMLElement,
+  leftContainer: HTMLElement,
   rightSidebar: HTMLElement,
   mainContent: HTMLElement | null,
   leftSidebarWidth: number,
@@ -276,8 +276,8 @@ const applyMainContentHidden = (
   const rightSideClassToAdd = isLeftSideBarOpen ? 'panes-sidebar-dual' : 'panes-sidebar-full';
   rightSidebar.classList.add(rightSideClassToAdd);
 
-  const newLeftSideWidth = isLeftSideBarOpen ? leftSidebarWidth : 0;
-  leftSide.style.cssText = `width: ${newLeftSideWidth}px;`;
+  const newLeftContainerWidth = isLeftSideBarOpen ? leftSidebarWidth : 0;
+  leftContainer.style.cssText = `width: ${newLeftContainerWidth}px;`;
 
   if (mainContent) {
     mainContent.style.display = 'none';
@@ -285,18 +285,20 @@ const applyMainContentHidden = (
 };
 
 const applyMainContentVisible = (
-  leftSide: HTMLElement,
+  leftContainer: HTMLElement,
   rightSidebar: HTMLElement | null,
-  leftSideNewWidth: number,
+  mainContent: HTMLElement | null,
+  leftSidebarWidth: number,
   isLeftSidebarOpen: boolean
 ): void => {
   const rigthSidebarClassToRemove = isLeftSidebarOpen ? 'panes-sidebar-dual' : 'panes-sidebar-full';
   rightSidebar?.classList.remove(rigthSidebarClassToRemove);
 
-  leftSide.style.cssText = `width: ${leftSideNewWidth}px;`;
-};
+  const originalWidth = loadMainContentWidth() || 900;
+  const newLeftContainerWidth = originalWidth + (isLeftSidebarOpen ? leftSidebarWidth : 0);
 
-const setMainContentVisible = (mainContent: HTMLElement | null): void => {
+  leftContainer.style.cssText = `width: ${newLeftContainerWidth}px;`;
+
   void waitForDomChanges(() => {
     if (mainContent) {
       mainContent.style.display = 'flex';
@@ -305,39 +307,32 @@ const setMainContentVisible = (mainContent: HTMLElement | null): void => {
 };
 
 export const hideMainContent = (): void => {
-  const { leftSide, mainContent, leftSidebar, rightSidebar } = getLeftLayoutElements();
+  const { leftContainer, mainContent, leftSidebar, rightSidebar } = getLeftLayoutElements();
   const isMainContentHidden = mainContent?.style.display === 'none';
-  if (!leftSide || isMainContentHidden || !rightSidebar) return;
+  if (!leftContainer || isMainContentHidden || !rightSidebar) return;
 
   const leftSidebarWidth = getLeftSidebarWidthValue();
   const isLeftSideBarOpen = leftSidebar?.classList.contains('is-open') ?? false;
-  const leftSideCurrentWidth = leftSide.offsetWidth;
-  const leftSideWithoutBar = isLeftSideBarOpen
-    ? leftSideCurrentWidth - leftSidebarWidth
-    : leftSideCurrentWidth;
-  writeOriginalLeftSideWithoutBar(leftSideWithoutBar);
 
-  applyMainContentHidden(leftSide, rightSidebar, mainContent, leftSidebarWidth, isLeftSideBarOpen);
+  const mainContentWidth = leftContainer.offsetWidth - (isLeftSideBarOpen ? leftSidebarWidth : 0);
+  saveMainContentWidth(mainContentWidth);
+
+  applyMainContentHidden(leftContainer, rightSidebar, mainContent, leftSidebarWidth, isLeftSideBarOpen);
   syncNativeRightWindowControlsClass(true);
   manageActionButtonsPosition();
 };
 
 export const showMainContent = (): void => {
-  const { leftSide, mainContent, leftSidebar, rightSidebar } = getLeftLayoutElements();
+  const { leftContainer, mainContent, leftSidebar, rightSidebar } = getLeftLayoutElements();
   const mainContentVisible = mainContent?.style.display !== 'none';
-  if (!leftSide || mainContentVisible) return;
+  if (!leftContainer || mainContentVisible) return;
 
-  const leftSidebarWidthValue = getLeftSidebarWidthValue();
+  const leftSidebarWidth = getLeftSidebarWidthValue();
   const isLeftSidebarOpen = leftSidebar?.classList.contains('is-open') ?? false;
-  const originalWidth = readOriginalLeftSideWithoutBar() || 900;
-  const leftSideNewWidth = isLeftSidebarOpen
-    ? originalWidth + leftSidebarWidthValue
-    : originalWidth;
 
-  applyMainContentVisible(leftSide, rightSidebar, leftSideNewWidth, isLeftSidebarOpen);
+  applyMainContentVisible(leftContainer, rightSidebar, mainContent, leftSidebarWidth, isLeftSidebarOpen);
   syncNativeRightWindowControlsClass(false);
   manageActionButtonsPosition();
-  setMainContentVisible(mainContent);
 };
 
 export const toggleMainContent = (): void => {
