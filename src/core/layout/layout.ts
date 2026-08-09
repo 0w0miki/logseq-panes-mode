@@ -280,6 +280,7 @@ const applyMainContentHidden = (
   leftContainer.style.cssText = `width: ${newLeftContainerWidth}px;`;
 
   if (mainContent) {
+    saveMainContentWidth(mainContent.offsetWidth);
     mainContent.style.display = 'none';
   }
 };
@@ -291,8 +292,7 @@ const applyMainContentVisible = (
   leftSidebarWidth: number,
   isLeftSidebarOpen: boolean
 ): void => {
-  const rigthSidebarClassToRemove = isLeftSidebarOpen ? 'panes-sidebar-dual' : 'panes-sidebar-full';
-  rightSidebar?.classList.remove(rigthSidebarClassToRemove);
+  rightSidebar?.classList.remove('panes-sidebar-dual', 'panes-sidebar-full');
 
   const originalWidth = loadMainContentWidth() || 900;
   const newLeftContainerWidth = originalWidth + (isLeftSidebarOpen ? leftSidebarWidth : 0);
@@ -310,8 +310,6 @@ export const hideMainContent = (): void => {
   const { leftContainer, mainContent, leftSidebar, rightSidebar } = getLeftLayoutElements();
   const isMainContentHidden = mainContent?.style.display === 'none';
   if (!leftContainer || isMainContentHidden || !rightSidebar) return;
-
-  if (mainContent) saveMainContentWidth(mainContent.offsetWidth);
 
   const leftSidebarWidth = getLeftSidebarWidthValue();
   const isLeftSideBarOpen = leftSidebar?.classList.contains('is-open') ?? false;
