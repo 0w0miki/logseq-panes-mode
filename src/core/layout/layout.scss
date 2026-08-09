@@ -16,7 +16,7 @@ body.panesMode-active {
     display: none;
   }
 
-  .cp__right-sidebar.open {
+  .cp__right-sidebar.open:not(.panes-sidebar-dual) {
     max-width: none;
   }
 
@@ -279,6 +279,9 @@ body.panesMode-active {
   .panes-sidebar-full {
     width: 100% !important;
     max-width: 100%;
+  }
+  #app-container:has( .panes-sidebar-dual) #left-container {
+    width: var(--ls-left-sidebar-width);
   }
 
   .leftMenuButton {

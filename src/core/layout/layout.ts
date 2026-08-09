@@ -11,7 +11,6 @@ import {
 import { globalState } from '../pluginGlobalState';
 import { debugWarn } from '../logger';
 import { waitForDomChanges } from '../utils';
-import { loadMainContentWidth, saveMainContentWidth } from '../storage';
 import layoutStyles from './layout.scss';
 import tabsStyles from '../../features/tabs/tabs.scss';
 import paneSwitcherStyles from '../../features/panes/paneSwitcher/paneSwitcher.scss';
@@ -251,12 +250,6 @@ export const syncNativeRightWindowControlsClass = (isMainContentHidden: boolean)
 
 // --- Left side layout ---
 
-const getLeftSidebarWidthValue = (): number => {
-  const computedStyle = getComputedStyle(parent.document.documentElement);
-
-  return parseInt(computedStyle.getPropertyValue('--ls-left-sidebar-width'), 10);
-};
-
 const getLeftLayoutElements = (): LeftLayoutElements => {
   return {
     leftContainer: getLeftContainer(),
@@ -270,17 +263,12 @@ const applyMainContentHidden = (
   leftContainer: HTMLElement,
   rightSidebar: HTMLElement,
   mainContent: HTMLElement | null,
-  leftSidebarWidth: number,
   isLeftSideBarOpen: boolean
 ): void => {
   const rightSideClassToAdd = isLeftSideBarOpen ? 'panes-sidebar-dual' : 'panes-sidebar-full';
   rightSidebar.classList.add(rightSideClassToAdd);
 
-  const newLeftContainerWidth = isLeftSideBarOpen ? leftSidebarWidth : 0;
-  leftContainer.style.cssText = `width: ${newLeftContainerWidth}px;`;
-
   if (mainContent) {
-    saveMainContentWidth(mainContent.offsetWidth);
     mainContent.style.display = 'none';
   }
 };
@@ -289,21 +277,12 @@ const applyMainContentVisible = (
   leftContainer: HTMLElement,
   rightSidebar: HTMLElement | null,
   mainContent: HTMLElement | null,
-  leftSidebarWidth: number,
-  isLeftSidebarOpen: boolean
 ): void => {
   rightSidebar?.classList.remove('panes-sidebar-dual', 'panes-sidebar-full');
 
-  const originalWidth = loadMainContentWidth() || 900;
-  const newLeftContainerWidth = originalWidth + (isLeftSidebarOpen ? leftSidebarWidth : 0);
-
-  leftContainer.style.cssText = `width: ${newLeftContainerWidth}px;`;
-
-  void waitForDomChanges(() => {
-    if (mainContent) {
-      mainContent.style.display = 'flex';
-    }
-  }, 0.25);
+  if (mainContent) {
+    mainContent.style.display = 'flex';
+  }
 };
 
 export const hideMainContent = (): void => {
@@ -311,9 +290,8 @@ export const hideMainContent = (): void => {
   const isMainContentHidden = mainContent?.style.display === 'none';
   if (!leftContainer || isMainContentHidden || !rightSidebar) return;
 
-  const leftSidebarWidth = getLeftSidebarWidthValue();
   const isLeftSideBarOpen = leftSidebar?.classList.contains('is-open') ?? false;
-  applyMainContentHidden(leftContainer, rightSidebar, mainContent, leftSidebarWidth, isLeftSideBarOpen);
+  applyMainContentHidden(leftContainer, rightSidebar, mainContent, isLeftSideBarOpen);
   syncNativeRightWindowControlsClass(true);
   manageActionButtonsPosition();
 };
@@ -323,10 +301,7 @@ export const showMainContent = (): void => {
   const mainContentVisible = mainContent?.style.display !== 'none';
   if (!leftContainer || mainContentVisible) return;
 
-  const leftSidebarWidth = getLeftSidebarWidthValue();
-  const isLeftSidebarOpen = leftSidebar?.classList.contains('is-open') ?? false;
-
-  applyMainContentVisible(leftContainer, rightSidebar, mainContent, leftSidebarWidth, isLeftSidebarOpen);
+  applyMainContentVisible(leftContainer, rightSidebar, mainContent);
   syncNativeRightWindowControlsClass(false);
   manageActionButtonsPosition();
 };

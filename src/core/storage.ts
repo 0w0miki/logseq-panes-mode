@@ -21,15 +21,6 @@ export const writeLastActiveToStorage = (order: string[]): void => {
   persistArray(STORAGE_KEYS.lastActivePanes, order);
 };
 
-export const saveMainContentWidth = (width: number): void => {
-  localStorage.setItem(STORAGE_KEYS.originalMainContentWidth, String(width));
-};
-
-export const loadMainContentWidth = (): number | null => {
-  const raw = localStorage.getItem(STORAGE_KEYS.originalMainContentWidth);
-  return raw ? Number(raw) : null;
-};
-
 export const readPanesDimensionsFromStorage = (): PaneDimensionsRecord =>
   readRecordStorage<PaneDimensions>(STORAGE_KEYS.paneDimensions);
 
