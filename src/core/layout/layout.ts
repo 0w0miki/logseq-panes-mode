@@ -10,7 +10,6 @@ import {
 } from '../domUtils';
 import { globalState } from '../pluginGlobalState';
 import { debugWarn } from '../logger';
-import { waitForDomChanges } from '../utils';
 import layoutStyles from './layout.scss';
 import tabsStyles from '../../features/tabs/tabs.scss';
 import paneSwitcherStyles from '../../features/panes/paneSwitcher/paneSwitcher.scss';
@@ -249,6 +248,11 @@ export const syncNativeRightWindowControlsClass = (isMainContentHidden: boolean)
 };
 
 // --- Left side layout ---
+const getLeftSidebarWidthValue = (): number => {
+  const computedStyle = getComputedStyle(parent.document.documentElement);
+
+  return parseInt(computedStyle.getPropertyValue('--ls-left-sidebar-width'), 10);
+};
 
 const getLeftLayoutElements = (): LeftLayoutElements => {
   return {
@@ -260,7 +264,6 @@ const getLeftLayoutElements = (): LeftLayoutElements => {
 };
 
 const applyMainContentHidden = (
-  leftContainer: HTMLElement,
   rightSidebar: HTMLElement,
   mainContent: HTMLElement | null,
   isLeftSideBarOpen: boolean
@@ -274,11 +277,18 @@ const applyMainContentHidden = (
 };
 
 const applyMainContentVisible = (
-  leftContainer: HTMLElement,
   rightSidebar: HTMLElement | null,
   mainContent: HTMLElement | null,
 ): void => {
   rightSidebar?.classList.remove('panes-sidebar-dual', 'panes-sidebar-full');
+
+  // Ensure there is enough room for main content
+  const windowWidth = parent.window.innerWidth;
+  const newWidth = parseFloat(rightSidebar.style.width) / 100 * windowWidth;
+  const leftSidebarWidth = getLeftSidebarWidthValue();
+  if (leftSidebarWidth + newWidth > windowWidth) {
+    rightSidebar.style.width = `${(newWidth - 100) / windowWidth * 100}%`;
+  }
 
   if (mainContent) {
     mainContent.style.display = 'flex';
@@ -291,17 +301,17 @@ export const hideMainContent = (): void => {
   if (!leftContainer || isMainContentHidden || !rightSidebar) return;
 
   const isLeftSideBarOpen = leftSidebar?.classList.contains('is-open') ?? false;
-  applyMainContentHidden(leftContainer, rightSidebar, mainContent, isLeftSideBarOpen);
+  applyMainContentHidden(rightSidebar, mainContent, isLeftSideBarOpen);
   syncNativeRightWindowControlsClass(true);
   manageActionButtonsPosition();
 };
 
 export const showMainContent = (): void => {
-  const { leftContainer, mainContent, leftSidebar, rightSidebar } = getLeftLayoutElements();
+  const { leftContainer, mainContent, rightSidebar } = getLeftLayoutElements();
   const mainContentVisible = mainContent?.style.display !== 'none';
   if (!leftContainer || mainContentVisible) return;
 
-  applyMainContentVisible(leftContainer, rightSidebar, mainContent);
+  applyMainContentVisible(rightSidebar, mainContent);
   syncNativeRightWindowControlsClass(false);
   manageActionButtonsPosition();
 };
@@ -509,11 +519,6 @@ const createResizeState = (): ResizeState => ({
   pendingClientX: null,
 });
 
-const setResizeDragStyles = (isDragging: boolean): void => {
-  parent.document.body.style.cursor = isDragging ? 'col-resize' : '';
-  parent.document.body.style.userSelect = isDragging ? 'none' : '';
-};
-
 const cancelResizeFrame = (state: ResizeState): void => {
   if (!state.resizeRAF) return;
   cancelAnimationFrame(state.resizeRAF);
@@ -537,20 +542,15 @@ const readSidebarWidth = (rightSidebar: HTMLElement): number => {
 
 const clampSidebarWidth = (width: number, windowWidth: number): number => {
   const minWidth = 100;
-  const maxWidth = windowWidth - 50;
+  const leftSidebar = getLeftSidebar();
+  const isLeftSideBarOpen = leftSidebar?.classList.contains('is-open') || false;
+
+  let maxWidth = windowWidth - 50;
+  if (isLeftSideBarOpen) {
+    maxWidth = windowWidth - getLeftSidebarWidthValue() - 50;
+  }
 
   return Math.max(minWidth, Math.min(maxWidth, width));
-};
-
-const applySidebarWidth = (
-  rightSidebar: HTMLElement,
-  separator: HTMLElement,
-  widthPx: number,
-  windowWidth: number
-): void => {
-  const widthPercentage = (widthPx / windowWidth) * 100;
-  rightSidebar.style.width = `${widthPercentage}%`;
-  separator.setAttribute('aria-valuenow', widthPercentage.toFixed(2));
 };
 
 const scheduleResizeUpdate = (
@@ -569,7 +569,9 @@ const scheduleResizeUpdate = (
     const windowWidth = parent.window.innerWidth;
     const clampedWidth = clampSidebarWidth(newWidth, windowWidth);
 
-    applySidebarWidth(rightSidebar, separator, clampedWidth, windowWidth);
+    const widthPercentage = (clampedWidth / windowWidth) * 100;
+    rightSidebar.style.width = `${widthPercentage}%`;
+    separator.setAttribute('aria-valuenow', widthPercentage.toFixed(2));
   });
 };
 
@@ -592,7 +594,6 @@ export const setupCustomSidebarResize = (): (() => void) => {
     resizeState.pendingClientX = null;
 
     cancelResizeFrame(resizeState);
-    setResizeDragStyles(false);
   };
 
   const handleMouseDown = (e: MouseEvent) => {
@@ -603,15 +604,12 @@ export const setupCustomSidebarResize = (): (() => void) => {
     resizeState.isDragging = true;
     resizeState.startX = e.clientX;
     resizeState.startWidth = readSidebarWidth(rightSidebar);
-
-    setResizeDragStyles(true);
   };
 
   const handleMouseMove = (e: MouseEvent) => {
     if (!resizeState.isDragging) return;
     if (e.buttons === 0) {
       stopDragging();
-
       return;
     }
 
@@ -645,10 +643,7 @@ export const setupCustomSidebarResize = (): (() => void) => {
 };
 
 export const initCustomSidebarResize = (): void => {
-  if (sidebarResizeCleanup) {
-    sidebarResizeCleanup();
-    sidebarResizeCleanup = null;
-  }
+  cleanupCustomSidebarResize();
   sidebarResizeCleanup = setupCustomSidebarResize();
 };
 
