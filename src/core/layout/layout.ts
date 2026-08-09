@@ -311,12 +311,10 @@ export const hideMainContent = (): void => {
   const isMainContentHidden = mainContent?.style.display === 'none';
   if (!leftContainer || isMainContentHidden || !rightSidebar) return;
 
+  if (mainContent) saveMainContentWidth(mainContent.offsetWidth);
+
   const leftSidebarWidth = getLeftSidebarWidthValue();
   const isLeftSideBarOpen = leftSidebar?.classList.contains('is-open') ?? false;
-
-  const mainContentWidth = leftContainer.offsetWidth - (isLeftSideBarOpen ? leftSidebarWidth : 0);
-  saveMainContentWidth(mainContentWidth);
-
   applyMainContentHidden(leftContainer, rightSidebar, mainContent, leftSidebarWidth, isLeftSideBarOpen);
   syncNativeRightWindowControlsClass(true);
   manageActionButtonsPosition();
