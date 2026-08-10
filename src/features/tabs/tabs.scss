@@ -64,7 +64,7 @@
 .panesMode-tabs-container-vertical::-webkit-scrollbar-thumb {
   height: 3px;
   width: 3px;
-  background: #c9c9c9 !important;
+  background: #c9c9c9;
   border-radius: 10px;
 }
 
@@ -75,7 +75,7 @@ html[data-theme='dark'] .panesMode-tabs-container-vertical::-webkit-scrollbar {
 
 html[data-theme='dark'] .panesMode-tabs-container-horizontal::-webkit-scrollbar-thumb,
 html[data-theme='dark'] .panesMode-tabs-container-vertical::-webkit-scrollbar-thumb {
-  background: #08404f !important;
+  background: #08404f;
 }
 
 .panesMode-tabs-container-horizontal:hover::-webkit-scrollbar,

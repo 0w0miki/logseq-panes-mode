@@ -105,7 +105,7 @@ const buildDynamicStyles = (settings: PluginSettings): string => {
 
     body.panesMode-active .panesMode-tabs-container-horizontal {
       height: ${tabContainerHorizontalHeightPx}px;
-      padding-left: ${tabContainerPaddingLeftPx}px !important;
+      padding-left: ${tabContainerPaddingLeftPx}px;
       margin-bottom: ${tabContainerMarginBottomPx}px;
       border-bottom-width: ${tabContainerBorderPx}px;
     }
