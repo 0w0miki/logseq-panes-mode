@@ -15,6 +15,7 @@ import { hidePaneSwitcherModal, showPaneSwitcherModal } from '../panes/paneSwitc
 import { hideProjectsModal, showProjectsModal } from '../projects/projects';
 import { updateTabs } from '../tabs/tabs';
 import { toggleMultiColumnForPane } from '../panes/paneMultiColumn';
+import { toggleMainContent } from '../../core/layout/layout';
 import {
   exitIfEditing,
   isPrimaryShortcutModifierPressed,
@@ -545,6 +546,12 @@ const registerPaneManagementShortcuts = (
     'Focus text in active pane',
     'mod+shift+d',
     handleFocusTextOnEnter
+  );
+  registerShortcut(
+    'panesMode.toggleMainContent',
+    'Toggle main content',
+    't m',
+    () => toggleMainContent()
   );
 };
 
