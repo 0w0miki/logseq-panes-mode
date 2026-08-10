@@ -280,8 +280,59 @@ body.panesMode-active {
     width: 100% !important;
     max-width: 100%;
   }
-  #app-container:has( .panes-sidebar-dual) #left-container {
-    width: var(--ls-left-sidebar-width);
+  #app-container:has(:is(.panes-sidebar-dual, .panes-sidebar-full)) {
+    .r.flex {
+      -webkit-app-region: none;
+    }
+    .l.flex {
+      -webkit-app-region: none;
+    }
+  }
+  #app-container:has( .panes-sidebar-dual) {
+    #left-container {
+      width: var(--ls-left-sidebar-width);
+    }
+    #left-sidebar .r.flex {
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 0.25rem 1rem 0.25rem 1.5rem;
+
+      > .flex.items-center {
+        flex-wrap: wrap;
+      }
+
+      button,
+      .button {
+        opacity: 0.6;
+        background-color: var(--left-sidebar-bg-color, transparent);
+      }
+
+      .actionButton {
+        background-color: var(--left-sidebar-bg-color, transparent);
+      }
+
+      .dropdown-wrapper {
+        left: -10px;
+      }
+
+      .ui-items-container[data-type='toolbar'] {
+        flex-wrap: wrap;
+
+        > .list-wrap {
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-bottom: 10px;
+        }
+      }
+    }
+  }
+  #app-container:has(.electron-mac):has(.panes-sidebar-full) {
+    .panesMode-tabs-container-horizontal {
+      padding-left: 100px;
+    }
+    .panesMode-tabs-container-vertical {
+      padding-top: 3.125em;
+    }
   }
 
   .leftMenuButton {
@@ -292,38 +343,6 @@ body.panesMode-active {
   }
   .fullScreenTabs {
     padding-left: 100px;
-  }
-  .action-buttons--left-sidebar {
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 0.25rem 1rem 0.25rem 1.5rem;
-    button,
-    .button {
-      opacity: 0.6;
-      background-color: var(--left-sidebar-bg-color, transparent);
-    }
-
-    .actionButton {
-      background-color: var(--left-sidebar-bg-color, transparent);
-    }
-
-    .dropdown-wrapper {
-      left: -10px;
-    }
-
-    .ui-items-container[data-type='toolbar'] {
-      flex-wrap: wrap;
-
-      > .list-wrap {
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-bottom: 10px;
-      }
-    }
-  }
-
-  &.panesMode-db-version .action-buttons--left-sidebar > .flex.items-center {
-    flex-wrap: wrap;
   }
 
   .panesMode-multicol {

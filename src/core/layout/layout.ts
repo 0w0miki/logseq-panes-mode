@@ -328,9 +328,6 @@ export const toggleMainContent = (): void => {
 
 // --- Action buttons placement ---
 
-const ORIGINAL_ACTION_BUTTONS_CLASSES = 'r flex';
-const ORIGINAL_OPEN_LEFT_SIDEBAR_BUTTON_CLASSES = 'l flex';
-
 const getHeaderButtons = (): {
   actionButtons: HTMLElement | null;
   leftHeaderButtons: HTMLElement | null;
@@ -341,23 +338,8 @@ const getHeaderButtons = (): {
   return { actionButtons, leftHeaderButtons };
 };
 
-const resetHeaderButtonClasses = (
-  actionButtons: HTMLElement | null,
-  leftHeaderButtons: HTMLElement | null
-): void => {
-  if (actionButtons) {
-    actionButtons.classList.value = ORIGINAL_ACTION_BUTTONS_CLASSES;
-  }
-
-  if (leftHeaderButtons) {
-    leftHeaderButtons.classList.value = ORIGINAL_OPEN_LEFT_SIDEBAR_BUTTON_CLASSES;
-  }
-};
-
 const getOrCreateButtonsWrapper = (tabsContainer: HTMLElement, className: string): HTMLElement => {
-  const existing =
-    tabsContainer.querySelector('.horizontal-tabs-action-buttons-wrapper') ||
-    tabsContainer.querySelector('.vertical-tabs-action-buttons-wrapper');
+  const existing = tabsContainer.querySelector(`.${className}`);
 
   if (existing) {
     return existing as HTMLElement;
@@ -365,29 +347,21 @@ const getOrCreateButtonsWrapper = (tabsContainer: HTMLElement, className: string
 
   const wrapper = parent.document.createElement('div');
   wrapper.className = className;
+  tabsContainer.appendChild(wrapper);
 
   return wrapper;
 };
 
-const placeButtonsInLeftHeader = (tabsContainer: HTMLElement): void => {
+const placeButtonsInMainHeader = (): void => {
   const areButtonsAtPlace = parent.document.querySelector('#head > .r');
   if (areButtonsAtPlace) return;
 
   const { actionButtons, leftHeaderButtons } = getHeaderButtons();
-  const leftsideHeader = parent.document.querySelector('#head');
-  if (!leftsideHeader) return;
+  const mainContentHeader = parent.document.querySelector('#head');
+  if (!mainContentHeader || !actionButtons || !leftHeaderButtons) return;
 
-  resetHeaderButtonClasses(actionButtons, leftHeaderButtons);
-
-  if (leftHeaderButtons) {
-    leftsideHeader.appendChild(leftHeaderButtons);
-  }
-
-  if (actionButtons) {
-    leftsideHeader.appendChild(actionButtons);
-  }
-
-  tabsContainer.style.padding = '0';
+  mainContentHeader.appendChild(leftHeaderButtons);
+  mainContentHeader.appendChild(actionButtons);
 };
 
 const placeButtonsInLeftSidebar = (leftSidebar: HTMLElement, tabsContainer: HTMLElement): void => {
@@ -397,11 +371,7 @@ const placeButtonsInLeftSidebar = (leftSidebar: HTMLElement, tabsContainer: HTML
   const { actionButtons, leftHeaderButtons } = getHeaderButtons();
   if (!actionButtons || !leftHeaderButtons) return;
 
-  leftHeaderButtons.classList.value = ORIGINAL_OPEN_LEFT_SIDEBAR_BUTTON_CLASSES;
-
   const header = parent.document.querySelector('#head');
-  actionButtons.classList.value = ORIGINAL_ACTION_BUTTONS_CLASSES;
-
   const leftSideBarNavItemsContainer = leftSidebar.querySelector(
     '.left-sidebar-inner > .wrap'
   ) as HTMLElement;
@@ -409,11 +379,7 @@ const placeButtonsInLeftSidebar = (leftSidebar: HTMLElement, tabsContainer: HTML
     '.nav-contents-container'
   ) as HTMLElement;
 
-  actionButtons.classList.add('action-buttons--left-sidebar');
   leftSideBarNavItemsContainer?.insertBefore(actionButtons, leftSideBarNavContainer);
-
-  tabsContainer.style.padding = '0';
-
   header?.appendChild(leftHeaderButtons);
 };
 
@@ -423,8 +389,6 @@ const placeButtonsInTabsContainer = (tabsContainer: HTMLElement, isVertical: boo
 
   const { actionButtons, leftHeaderButtons } = getHeaderButtons();
   if (!actionButtons || !leftHeaderButtons) return;
-
-  resetHeaderButtonClasses(actionButtons, leftHeaderButtons);
 
   const wrapperClassName = isVertical
     ? 'vertical-tabs-action-buttons-wrapper'
@@ -438,71 +402,29 @@ const placeButtonsInTabsContainer = (tabsContainer: HTMLElement, isVertical: boo
     buttonsWrapper.appendChild(actionButtons);
     buttonsWrapper.appendChild(leftHeaderButtons);
   }
-
-  tabsContainer.appendChild(buttonsWrapper);
-
-  if (isVertical) {
-    const actionButtonsHeight = buttonsWrapper.clientHeight;
-    tabsContainer.style.paddingBottom = `${actionButtonsHeight}px`;
-
-    const nativeMacControllButtonsHeight = '3.125em';
-    if (globalState.isMacDesktop) {
-      tabsContainer.style.paddingTop = nativeMacControllButtonsHeight;
-    }
-
-    return;
-  }
-
-  const actionButtonsWidth = buttonsWrapper.clientWidth;
-  tabsContainer.style.paddingRight = `${actionButtonsWidth}px`;
-
-  const nativeMacControllButtonsWidth = '100px';
-  if (globalState.isMacDesktop) {
-    tabsContainer.style.paddingLeft = nativeMacControllButtonsWidth;
-  }
 };
 
 export const restoreActionButtonsToHeader = (): void => {
-  const { actionButtons, leftHeaderButtons } = getHeaderButtons();
-  const leftsideHeader = parent.document.querySelector('#head');
-  if (!leftsideHeader) return;
-
-  resetHeaderButtonClasses(actionButtons, leftHeaderButtons);
-
-  if (leftHeaderButtons && leftHeaderButtons.parentElement !== leftsideHeader) {
-    leftsideHeader.appendChild(leftHeaderButtons);
-  }
-
-  if (actionButtons && actionButtons.parentElement !== leftsideHeader) {
-    leftsideHeader.appendChild(actionButtons);
-  }
+  placeButtonsInMainHeader();
 };
 
 export const manageActionButtonsPosition = (): void => {
   const leftSidebar = getLeftSidebar();
-  if (!leftSidebar) return;
-
-  const rightSidebar = getRightSidebar();
-  const isRightSidebarOpen = Boolean(getRightSidebarContainer());
-  if (!rightSidebar || !isRightSidebarOpen) return;
-
+  const mainContent = getMainContent();
   const tabsContainer = getTabsContainer(APP_SETTINGS_CONFIG.isVerticalTabs);
-  if (!tabsContainer) return;
 
-  const isLeftSideOpen =
-    !rightSidebar.classList.contains('panes-sidebar-full') &&
-    !rightSidebar.classList.contains('panes-sidebar-dual');
+  if (!leftSidebar || !tabsContainer) return;
 
-  if (isLeftSideOpen) {
-    placeButtonsInLeftHeader(tabsContainer);
+  const isMainContentHidden = mainContent?.style.display === 'none' || false;
 
+  if (!isMainContentHidden) {
+    placeButtonsInMainHeader();
     return;
   }
 
   const isLeftSideBarOpen = leftSidebar.classList.contains('is-open') || false;
   if (isLeftSideBarOpen) {
     placeButtonsInLeftSidebar(leftSidebar, tabsContainer);
-
     return;
   }
 
