@@ -325,8 +325,8 @@ html[data-theme='dark'] .horizontal-tabs-action-buttons-wrapper {
   }
 }
 
-.horizontal-tabs-action-buttons-wrapper .r > :not(.ui-items-container),
-.vertical-tabs-action-buttons-wrapper .r > :not(.ui-items-container),
+.horizontal-tabs-action-buttons-wrapper .r :not(:is(:has(.ui-items-container), .ui-items-container, .ui-items-container *)),
+.vertical-tabs-action-buttons-wrapper .r :not(:is(:has(.ui-items-container), .ui-items-container, .ui-items-container *)),
 .horizontal-tabs-action-buttons-wrapper .l > :not(:first-child),
 .vertical-tabs-action-buttons-wrapper .l > :not(:first-child) {
   display: none !important;
