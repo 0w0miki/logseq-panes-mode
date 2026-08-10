@@ -47,7 +47,6 @@ const buildDynamicStyles = (settings: PluginSettings): string => {
   const tabsVerticalWidthPx = settings.tabWidthPx;
   const resizerWidthPx = settings.resizerWidthPx;
   const paneDefaultWidthPx = Math.max(100, settings.paneInitialWidthPx || 1000);
-  const actionGapPx = 10;
   const sidebarGapPx = Math.max(0, settings.panesGapPx ?? 10);
   const collapseToggleSizePx = 33;
   const lightColors = {
@@ -159,11 +158,6 @@ const buildDynamicStyles = (settings: PluginSettings): string => {
       font-size: 14px;
       right: ${tabCloseOffsetRightPx}px;
       top: ${tabCloseOffsetTopPx}px;
-    }
-
-    body.panesMode-active .vertical-tabs-action-buttons-wrapper {
-      width: ${tabsVerticalWidthPx}px;
-      gap: ${actionGapPx}px;
     }
 
     body.panesMode-active .right-sidebar-vertical-tabs .cp__right-sidebar-scrollable {
