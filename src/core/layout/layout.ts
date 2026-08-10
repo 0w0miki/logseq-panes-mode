@@ -1,12 +1,10 @@
-import { APP_SETTINGS_CONFIG, PLUGIN_UI_SELECTORS } from '../constants';
+import { PLUGIN_UI_SELECTORS } from '../constants';
 import { PluginSettings, getPluginSettings } from '../pluginSettings';
 import {
   getLeftContainer,
   getLeftSidebar,
   getMainContent,
   getRightSidebar,
-  getRightSidebarContainer,
-  getTabsContainer,
 } from '../domUtils';
 import { globalState } from '../pluginGlobalState';
 import { debugWarn } from '../logger';
@@ -358,44 +356,20 @@ const placeButtonsInMainHeader = (): void => {
   mainContentHeader.appendChild(actionButtons);
 };
 
-const placeButtonsInLeftSidebar = (leftSidebar: HTMLElement, tabsContainer: HTMLElement): void => {
-  const areButtonsAtPlace = leftSidebar.querySelector('.r.flex');
-  if (areButtonsAtPlace) return;
+const placeButtonsInTabsContainer = (): void => {
+  const appContainer = parent.document.querySelector('#app-container');
+  if (!appContainer) return;
+
+  const wrapperClassName = 'action-buttons-wrapper';
+  const existing = appContainer.querySelector(`.${wrapperClassName}`);
+  if (existing?.querySelector('.r.flex')) return;
 
   const { actionButtons, leftHeaderButtons } = getHeaderButtons();
   if (!actionButtons || !leftHeaderButtons) return;
 
-  const header = parent.document.querySelector('#head');
-  const leftSideBarNavItemsContainer = leftSidebar.querySelector(
-    '.left-sidebar-inner > .wrap'
-  ) as HTMLElement;
-  const leftSideBarNavContainer = leftSidebar.querySelector(
-    '.nav-contents-container'
-  ) as HTMLElement;
-
-  leftSideBarNavItemsContainer?.insertBefore(actionButtons, leftSideBarNavContainer);
-  header?.appendChild(leftHeaderButtons);
-};
-
-const placeButtonsInTabsContainer = (tabsContainer: HTMLElement, isVertical: boolean): void => {
-  const areButtonsAtPlace = tabsContainer.querySelector('.r.flex');
-  if (areButtonsAtPlace) return;
-
-  const { actionButtons, leftHeaderButtons } = getHeaderButtons();
-  if (!actionButtons || !leftHeaderButtons) return;
-
-  const wrapperClassName = isVertical
-    ? 'vertical-tabs-action-buttons-wrapper'
-    : 'horizontal-tabs-action-buttons-wrapper';
-  const buttonsWrapper = getOrCreateButtonsWrapper(tabsContainer, wrapperClassName);
-
-  if (isVertical) {
-    buttonsWrapper.appendChild(leftHeaderButtons);
-    buttonsWrapper.appendChild(actionButtons);
-  } else {
-    buttonsWrapper.appendChild(actionButtons);
-    buttonsWrapper.appendChild(leftHeaderButtons);
-  }
+  const buttonsWrapper = getOrCreateButtonsWrapper(appContainer as HTMLElement, wrapperClassName);
+  buttonsWrapper.appendChild(actionButtons);
+  buttonsWrapper.appendChild(leftHeaderButtons);
 };
 
 export const restoreActionButtonsToHeader = (): void => {
@@ -403,12 +377,7 @@ export const restoreActionButtonsToHeader = (): void => {
 };
 
 export const manageActionButtonsPosition = (): void => {
-  const leftSidebar = getLeftSidebar();
   const mainContent = getMainContent();
-  const tabsContainer = getTabsContainer(APP_SETTINGS_CONFIG.isVerticalTabs);
-
-  if (!leftSidebar || !tabsContainer) return;
-
   const isMainContentHidden = mainContent?.style.display === 'none' || false;
 
   if (!isMainContentHidden) {
@@ -416,13 +385,7 @@ export const manageActionButtonsPosition = (): void => {
     return;
   }
 
-  const isLeftSideBarOpen = leftSidebar.classList.contains('is-open') || false;
-  if (isLeftSideBarOpen) {
-    placeButtonsInLeftSidebar(leftSidebar, tabsContainer);
-    return;
-  }
-
-  placeButtonsInTabsContainer(tabsContainer, APP_SETTINGS_CONFIG.isVerticalTabs);
+  placeButtonsInTabsContainer();
 };
 
 // --- Sidebar resize ---
