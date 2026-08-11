@@ -330,8 +330,8 @@ const getHeaderButtons = (): {
   return { actionButtons, leftHeaderButtons };
 };
 
-const getOrCreateButtonsWrapper = (tabsContainer: HTMLElement, className: string): HTMLElement => {
-  const existing = tabsContainer.querySelector(`.${className}`);
+const getOrCreateButtonsWrapper = (container: HTMLElement, className: string): HTMLElement => {
+  const existing = container.querySelector(`.${className}`);
 
   if (existing) {
     return existing as HTMLElement;
@@ -339,7 +339,7 @@ const getOrCreateButtonsWrapper = (tabsContainer: HTMLElement, className: string
 
   const wrapper = parent.document.createElement('div');
   wrapper.className = className;
-  tabsContainer.appendChild(wrapper);
+  container.appendChild(wrapper);
 
   return wrapper;
 };
@@ -357,15 +357,13 @@ const placeButtonsInMainHeader = (): void => {
 };
 
 const placeButtonsInTabsContainer = (): void => {
-  const appContainer = parent.document.querySelector('#app-container');
-  if (!appContainer) return;
-
   const wrapperClassName = 'action-buttons-wrapper';
-  const existing = appContainer.querySelector(`.${wrapperClassName}`);
-  if (existing?.querySelector('.r.flex')) return;
+  const areButtonsAtPlace = parent.document.querySelector(`.${wrapperClassName} > .r.flex`);
+  if (areButtonsAtPlace) return;
 
   const { actionButtons, leftHeaderButtons } = getHeaderButtons();
-  if (!actionButtons || !leftHeaderButtons) return;
+  const appContainer = parent.document.querySelector('#app-container');
+  if (!appContainer || !actionButtons || !leftHeaderButtons) return;
 
   const buttonsWrapper = getOrCreateButtonsWrapper(appContainer as HTMLElement, wrapperClassName);
   buttonsWrapper.appendChild(actionButtons);
