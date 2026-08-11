@@ -37,16 +37,11 @@ const buildDynamicStyles = (settings: PluginSettings): string => {
   const baseTabHeightPx = settings.tabHeightPx;
   const tabCloseSizePx = 16;
   const tabCloseOffsetTopPx = Math.max(Math.round((baseTabHeightPx - tabCloseSizePx) / 2), 0);
-  const tabCloseOffsetRightPx = 10;
   const tabContainerHorizontalHeightPx = baseTabHeightPx;
-  const tabContainerPaddingLeftPx = 6;
-  const tabContainerMarginBottomPx = 2;
-  const tabContainerBorderPx = 0;
   const tabsVerticalWidthPx = settings.tabWidthPx;
   const resizerWidthPx = settings.resizerWidthPx;
   const paneDefaultWidthPx = Math.max(100, settings.paneInitialWidthPx || 1000);
   const sidebarGapPx = Math.max(0, settings.panesGapPx ?? 10);
-  const collapseToggleSizePx = 33;
   const lightColors = {
     tabBg: settings.isVerticalTabs
       ? settings.themeLightTabBackground
@@ -102,48 +97,14 @@ const buildDynamicStyles = (settings: PluginSettings): string => {
 
     body.panesMode-active .panesMode-tabs-container-horizontal {
       height: ${tabContainerHorizontalHeightPx}px;
-      padding-left: ${tabContainerPaddingLeftPx}px;
-      margin-bottom: ${tabContainerMarginBottomPx}px;
-      border-bottom-width: ${tabContainerBorderPx}px;
     }
 
     body.panesMode-active .panesMode-tabs-container-vertical {
       width: ${tabsVerticalWidthPx}px;
-      min-height: var(--panesMode-tab-height);
-      border-right-width: ${tabContainerBorderPx}px;
-      background-color: var(--panesMode-vertical-tabs-bg);
-    }
-
-    body.panesMode-active[data-theme='dark'] .panesMode-tabs-container-horizontal .panesMode-tab,
-    html[data-theme='dark'] body.panesMode-active .panesMode-tabs-container-horizontal .panesMode-tab {
-      position: relative;
-      background-color: var(--panesMode-tab-bg);
-    }
-
-    body.panesMode-active .panesMode-tab {
-      min-width: var(--panesMode-tab-width);
-      font-size: var(--panesMode-tab-text-size);
-      height: var(--panesMode-tab-height);
-      padding: 0 10px;
-      background-color: var(--panesMode-tab-bg);
-      color: var(--panesMode-tab-text);
-    }
-
-    body.panesMode-active .panesMode-tab.active-tab {
-      background-color: var(--panesMode-tab-active-bg);
-      color: var(--panesMode-tab-text);
-      height: var(--panesMode-tab-height);
-    }
-
-    body.panesMode-active[data-theme='dark'] .panesMode-tab.active-tab,
-    html[data-theme='dark'] body.panesMode-active .panesMode-tab.active-tab   {
-      background-color: var(--panesMode-tab-active-bg);
     }
 
     body.panesMode-active .panesMode-tab .panesMode-tab-text {
       width: ${tabTextWidthPx}px;
-      font-size: var(--panesMode-tab-text-size);
-      color: var(--panesMode-tab-text);
     }
 
     body.panesMode-active .panesMode-tab:hover .panesMode-tab-text {
@@ -151,10 +112,6 @@ const buildDynamicStyles = (settings: PluginSettings): string => {
     }
 
     body.panesMode-active .panesMode-tab-close {
-      width: ${tabCloseSizePx}px;
-      height: ${tabCloseSizePx}px;
-      font-size: 14px;
-      right: ${tabCloseOffsetRightPx}px;
       top: ${tabCloseOffsetTopPx}px;
     }
 
@@ -164,53 +121,16 @@ const buildDynamicStyles = (settings: PluginSettings): string => {
 
     body.panesMode-active .cp__right-sidebar .sidebar-item {
       width: ${paneDefaultWidthPx}px;
-      transition: width 0.1s ease-in-out;
-    }
-
-    body.panesMode-active .panesMode-collapse-orientation-toggle {
-      font-size: ${collapseToggleSizePx}px;
-      width: ${collapseToggleSizePx}px;
-      height: ${collapseToggleSizePx}px;
     }
 
     body.panesMode-active .sidebar-item-list {
       gap: ${sidebarGapPx}px;
     }
 
-    body.panesMode-active .cp__right-sidebar-inner.flex.flex-col.h-full {
-      background-color: var(
-        --panesMode-sidebar-list-bg,
-        var(--ls-secondary-background-color, #f8f8f8)
-      );
-    }
-
-    body.panesMode-active[data-theme='dark'] .cp__right-sidebar-inner.flex.flex-col.h-full,
-    html[data-theme='dark'] body.panesMode-active .cp__right-sidebar-inner.flex.flex-col.h-full {
-      background-color: var(
-        --panesMode-sidebar-list-bg-dark,
-        var(--panesMode-sidebar-list-bg, var(--ls-secondary-background-color, #0d0d0d))
-      );
-    }
-
     body.panesMode-active .cp__right-sidebar .resizer {
       width: ${resizerWidthPx}px;
-      background: var(--panesMode-resizer-color, #dedede);
-      opacity: 0.6;
-      transition: opacity 0.2s ease, background 0.2s ease;
     }
 
-    body.panesMode-active .cp__right-sidebar .resizer:hover {
-      background: linear-gradient(
-        180deg,
-        var(--panesMode-resizer-color, rgba(0,0,0,0.2)),
-        transparent
-      );
-      opacity: 0.9;
-    }
-
-    body.panesMode-active .cp__right-sidebar .sidebar-item .font-medium {
-      font-size: var(--panesMode-header-text-size);
-    }
     ${stickyHeadersStyles}
   `;
 };
