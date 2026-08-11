@@ -341,7 +341,6 @@ const resetPanesState = () => {
     );
 
     delete paneElement.dataset.panesModeFitContent;
-    delete paneElement.dataset.panesModeFitContentInitialWidth;
     delete paneElement.dataset.panesModeFitContentBaselineHeightPx;
     delete paneElement.dataset.currentIndex;
 

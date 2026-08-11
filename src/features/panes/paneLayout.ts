@@ -88,7 +88,6 @@ export const enableFitContentForPane = (pane: Element): void => {
   if (!paneElement) return;
   const pageId = getPaneIdFromPane(paneElement);
   paneElement.dataset.panesModeFitContent = 'true';
-  paneElement.dataset.panesModeFitContentInitialWidth = paneElement.style.width;
   paneElement.classList.add('panesMode-fit-content');
   if (pageId) {
     writePaneFitContentHeightToStorage(pageId, true);
@@ -110,7 +109,6 @@ export const disableFitContentForPane = (
   if (!paneElement) return;
   const pageId = getPaneIdFromPane(paneElement);
   delete paneElement.dataset.panesModeFitContent;
-  delete paneElement.dataset.panesModeFitContentInitialWidth;
   delete paneElement.dataset.panesModeFitContentBaselineHeightPx;
   paneElement.classList.remove('panesMode-fit-content');
   if (pageId) {
@@ -175,8 +173,7 @@ export const applyInitialPaneSizes = (idToPaneMap: Map<string, Element>): void =
       paneElement.classList.add('panesMode-fit-content');
     } else {
       delete paneElement.dataset.panesModeFitContent;
-      delete paneElement.dataset.panesModeFitContentInitialWidth;
-      delete paneElement.dataset.panesModeFitContentBaselineHeightPx;
+          delete paneElement.dataset.panesModeFitContentBaselineHeightPx;
       paneElement.classList.remove('panesMode-fit-content');
     }
 
@@ -446,8 +443,7 @@ export const observePaneCollapseState = (pane: Element): void => {
       paneElement.classList.add('panesMode-fit-content');
     } else {
       delete paneElement.dataset.panesModeFitContent;
-      delete paneElement.dataset.panesModeFitContentInitialWidth;
-      delete paneElement.dataset.panesModeFitContentBaselineHeightPx;
+          delete paneElement.dataset.panesModeFitContentBaselineHeightPx;
       paneElement.classList.remove('panesMode-fit-content');
     }
   }
