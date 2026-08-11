@@ -41,7 +41,6 @@ export const APP_SETTINGS_CONFIG = {
   isDBVersion: false,
   activePaneScrollOverflowBuffer: 10,
   activeTabOverflowCoefficient: 0.35,
-  moreButtonActivationProximityPx: 200,
   resizeStoreDebounceMs: 250,
 };
 

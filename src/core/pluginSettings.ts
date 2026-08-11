@@ -29,7 +29,6 @@ export type PluginSettings = {
   paneBorderColor: string;
   paneBorderColorDark: string;
   tabPaddingCoefficient: number;
-  moreButtonProximityPx: number;
   themeLightTabBackground: string;
   themeLightTabBackgroundHorizontal: string;
   themeLightTabActiveBackground: string;
@@ -70,7 +69,6 @@ const defaultSettings: PluginSettings = {
   paneBorderColor: 'transparent',
   paneBorderColorDark: 'transparent',
   tabPaddingCoefficient: APP_SETTINGS_CONFIG.activeTabOverflowCoefficient,
-  moreButtonProximityPx: APP_SETTINGS_CONFIG.moreButtonActivationProximityPx,
   themeLightTabBackground: '#e5e5e5',
   themeLightTabBackgroundHorizontal: '#e5e5e5',
   themeLightTabActiveBackground: '#c9c9c9',
@@ -391,13 +389,6 @@ const settingsSchema: SettingSchemaDesc[] = [
     default: defaultSettings.tabPaddingCoefficient,
   },
   {
-    key: 'moreButtonProximityPx',
-    title: '"More" button trigger distance (px)',
-    description: 'Distance from the pane bottom that triggers auto-click of the More button.',
-    type: 'number',
-    default: defaultSettings.moreButtonProximityPx,
-  },
-  {
     key: 'domWaitCoefficient',
     title: 'DOM wait coefficient',
     description:
@@ -437,7 +428,6 @@ const applySettingsToRuntime = (settings: PluginSettings, previous?: PluginSetti
   globalState.maxTabs = settings.maxTabs;
   APP_SETTINGS_CONFIG.isVerticalTabs = settings.isVerticalTabs;
   APP_SETTINGS_CONFIG.activeTabOverflowCoefficient = settings.tabPaddingCoefficient;
-  APP_SETTINGS_CONFIG.moreButtonActivationProximityPx = settings.moreButtonProximityPx;
 
   settingsListeners.forEach(listener => listener(settings, previous ?? settings));
 };

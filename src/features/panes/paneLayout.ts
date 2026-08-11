@@ -11,7 +11,6 @@ import {
 import { getCurrentSidebarPanes } from './paneCache';
 import { setActivePaneByIndex } from './paneNavigation';
 import { globalState } from '../../core/pluginGlobalState';
-import { debounce } from '../../core/utils';
 import { updateTabs } from '../tabs/tabs';
 import { toggleMultiColumnForPane } from './paneMultiColumn';
 import type { CollapseOrientation, CollapsiblePane, FitContentToggleOptions } from './types';
@@ -131,35 +130,8 @@ export const enableFitContentForNewPane = (pane: Element): void => {
   enableFitContentForPane(paneElement);
 };
 
-export function checkAndClickMoreButtonIfNear(pane: Element): void {
-  if (!pane) return;
-  const moreButtons = pane.querySelectorAll('.w-full.p-4');
-  for (let i = 0; i < moreButtons.length; i++) {
-    const button = moreButtons[i] as HTMLElement;
-    if (button.textContent?.trim() === 'More') {
-      const paneElement = pane as HTMLElement;
-      const buttonRect = button.getBoundingClientRect();
-      const paneRect = paneElement.getBoundingClientRect();
-      const paneBottomInViewport = paneRect.bottom;
-      const buttonTopInViewport = buttonRect.top;
-      const distanceToMoreButton = buttonTopInViewport - paneBottomInViewport;
-      if (distanceToMoreButton <= APP_SETTINGS_CONFIG.moreButtonActivationProximityPx) {
-        const anchorElement = button.querySelector('a') as HTMLElement;
-        anchorElement.click();
-        break;
-      }
-    }
-  }
-}
-
-export function createScrollHandler(pane: Element): (e: Event) => void {
-  const debouncedHandler = debounce(() => {
-    checkAndClickMoreButtonIfNear(pane);
-  }, 200);
-
+export function createScrollHandler(_pane: Element): (e: Event) => void {
   return () => {
-    debouncedHandler();
-
     notifyVirtuosoScroll();
   };
 }
