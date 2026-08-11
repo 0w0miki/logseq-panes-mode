@@ -333,7 +333,6 @@ const resetPanesState = () => {
     paneElement.style.width = '';
     paneElement.style.height = '';
     paneElement.classList.remove(
-      'panesMode-fit-content',
       'panesMode-collapse-vertical',
       'panesMode-collapse-horizontal',
       'panesMode-pane-drag-target',

@@ -307,7 +307,6 @@ const applyProjectPaneLayout = (project: ProjectListItem['data'], container: HTM
     const fitContent = project.paneFitContentHeight[pageId];
     if (fitContent) {
       paneElement.dataset.panesModeFitContent = 'true';
-      paneElement.classList.add('panesMode-fit-content');
       paneElement.style.height = 'auto';
     }
 

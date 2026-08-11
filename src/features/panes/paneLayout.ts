@@ -15,9 +15,6 @@ import { updateTabs } from '../tabs/tabs';
 import { toggleMultiColumnForPane } from './paneMultiColumn';
 import type { CollapseOrientation, CollapsiblePane, FitContentToggleOptions } from './types';
 
-const isFitContentEnabled = (pane: HTMLElement): boolean =>
-  pane.dataset.panesModeFitContent === 'true';
-
 const getVirtuosoScrollElement = (): HTMLElement | null => {
   if (!APP_SETTINGS_CONFIG.isDBVersion) return null;
 
@@ -39,6 +36,9 @@ export const notifyVirtuosoScroll = (): void => {
   list.dispatchEvent(new Event('scroll'));
 };
 
+const isFitContentEnabled = (pane: HTMLElement): boolean =>
+  pane.dataset.panesModeFitContent === 'true';
+
 const hasStoredPaneHeight = (storedDimensions: PaneDimensions | undefined): boolean =>
   Number.isFinite(storedDimensions?.height) && (storedDimensions?.height ?? 0) > 0;
 
@@ -56,7 +56,7 @@ const shouldEnableFitContentForNewPane = (pane: HTMLElement): boolean => {
 
   const storedFitContentHeight = readPaneFitContentHeightFromStorage();
   if (typeof storedFitContentHeight?.[paneId] === 'boolean') {
-    return storedFitContentHeight[paneId] === true;
+    return storedFitContentHeight[paneId];
   }
 
   const storedDimensions = readPanesDimensionsFromStorage();
@@ -73,30 +73,27 @@ const syncFitContentToggleState = (pane: HTMLElement): void => {
 };
 
 const applyPaneWidth = (pane: Element): void => {
-  if (pane.classList.contains('collapsed')) return;
   const pageId = getPaneIdFromPane(pane);
-  if (!pageId) return;
+  if (!pageId || pane.classList.contains('collapsed')) return;
+
   const storedDimensions = readPanesDimensionsFromStorage();
   const storedPaneDimensions = storedDimensions?.[pageId];
   if (!storedPaneDimensions) return;
+
   const paneElement = pane as HTMLElement;
   paneElement.style.width = `${storedPaneDimensions.width}px`;
 };
 
 export const enableFitContentForPane = (pane: Element): void => {
   const paneElement = pane as HTMLElement;
-  if (!paneElement) return;
   const pageId = getPaneIdFromPane(paneElement);
   paneElement.dataset.panesModeFitContent = 'true';
-  paneElement.classList.add('panesMode-fit-content');
   if (pageId) {
     writePaneFitContentHeightToStorage(pageId, true);
   }
   if (!paneElement.classList.contains('collapsed')) {
     paneElement.style.height = 'auto';
-    paneElement.dataset.panesModeFitContentBaselineHeightPx = Math.round(
-      paneElement.getBoundingClientRect().height
-    ).toString();
+    paneElement.dataset.panesModeFitContentBaselineHeightPx = paneElement.offsetHeight.toString();
   }
   syncFitContentToggleState(paneElement);
 };
@@ -110,7 +107,6 @@ export const disableFitContentForPane = (
   const pageId = getPaneIdFromPane(paneElement);
   delete paneElement.dataset.panesModeFitContent;
   delete paneElement.dataset.panesModeFitContentBaselineHeightPx;
-  paneElement.classList.remove('panesMode-fit-content');
   if (pageId) {
     writePaneFitContentHeightToStorage(pageId, false);
   }
@@ -170,11 +166,9 @@ export const applyInitialPaneSizes = (idToPaneMap: Map<string, Element>): void =
 
     if (shouldFitContent) {
       paneElement.dataset.panesModeFitContent = 'true';
-      paneElement.classList.add('panesMode-fit-content');
     } else {
       delete paneElement.dataset.panesModeFitContent;
-          delete paneElement.dataset.panesModeFitContentBaselineHeightPx;
-      paneElement.classList.remove('panesMode-fit-content');
+      delete paneElement.dataset.panesModeFitContentBaselineHeightPx;
     }
 
     if (paneElement.classList.contains('collapsed')) {
@@ -440,11 +434,9 @@ export const observePaneCollapseState = (pane: Element): void => {
     );
     if (shouldFitContent) {
       paneElement.dataset.panesModeFitContent = 'true';
-      paneElement.classList.add('panesMode-fit-content');
     } else {
       delete paneElement.dataset.panesModeFitContent;
-          delete paneElement.dataset.panesModeFitContentBaselineHeightPx;
-      paneElement.classList.remove('panesMode-fit-content');
+      delete paneElement.dataset.panesModeFitContentBaselineHeightPx;
     }
   }
 
