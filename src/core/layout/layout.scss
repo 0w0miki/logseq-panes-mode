@@ -116,6 +116,7 @@ body.panesMode-active {
 
   .cp__right-sidebar .sidebar-item.collapsed {
     width: fit-content;
+    resize: none;
 
     .panesMode-fit-content-toggle {
       display: none;
@@ -129,7 +130,7 @@ body.panesMode-active {
 
   .cp__right-sidebar .sidebar-item.panesMode-collapse-vertical.collapsed {
     display: inline-block;
-    width: fit-content;
+    overflow-x: hidden;
 
     button:first-child {
       overflow: visible;
