@@ -144,7 +144,7 @@ const registerModelHandlers = (resetSettings: () => Promise<void>) => {
     },
     async cleanUnusedPanes() {
       if (!globalState.isPanesModeModeActive) return;
-      cleanUnusedPanes(updateTabs);
+      cleanUnusedPanes();
     },
     async hideMainContent() {
       if (!globalState.isPanesModeModeActive) return;

@@ -29,17 +29,14 @@ export const togglePaneCollapse = (index: number) => {
   const pane = globalState.cachedPanes[index];
   const collapseButton = pane.querySelector('.rotating-arrow') as HTMLElement;
   if (!collapseButton) return;
-  const isCurrentlyCollapsed = pane.classList.contains('collapsed');
+  const wasCollapsed = pane.classList.contains('collapsed');
   collapseButton.click();
   void waitForDomChanges(() => {
     const isCollapsedNow = pane.classList.contains('collapsed');
-    if (isCurrentlyCollapsed && !isCollapsedNow) {
-      const paneElement = pane as HTMLElement;
-      applyPaneDimensions(paneElement);
-      if (paneElement.dataset.panesModeFitContent === 'true') {
-        paneElement.style.height = 'auto';
-      }
-    } else if (isCollapsedNow) {
+    if (wasCollapsed === isCollapsedNow) return;
+    if (!isCollapsedNow) {
+      applyPaneDimensions(pane as HTMLElement);
+    } else {
       clearPaneDimensions(pane);
     }
     updateTabs(globalState.cachedPanes);
