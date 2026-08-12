@@ -342,51 +342,11 @@ const ensureMultiColumnToggle = (pane: CollapsiblePane): void => {
   toggleButton.addEventListener('click', newClickHandler);
 };
 
-const syncCollapseOrientation = (
-  paneElement: CollapsiblePane,
-): CollapseOrientation => {
-  const orientation = applyCollapseOrientationClass(paneElement);
-  ensureCollapseOrientationToggle(paneElement, orientation);
-
-  return orientation;
-};
-
-const syncPaneDimensionsForCollapseState = (pane: HTMLElement): void => {
-  if (pane.classList.contains('collapsed')) {
-    clearPaneDimensions(pane);
-    return;
-  }
-  if (isFitContentEnabled(pane)) {
-    applyPaneWidth(pane);
-    pane.style.height = 'auto';
-    return;
-  }
-  applyPaneDimensions(pane);
-};
-
 export const observePaneCollapseState = (pane: Element): void => {
   if (!pane) return;
   const paneElement = pane as CollapsiblePane;
   if (paneElement._collapseObserver) return;
 
-  const pageId = getPaneIdFromPane(paneElement);
-  if (pageId) {
-    const storedFitContent = readPaneFitContentHeightFromStorage();
-    const storedDimensions = readPanesDimensionsFromStorage();
-    const shouldFitContent = shouldUseFitContentHeight(
-      pageId,
-      storedDimensions?.[pageId],
-      storedFitContent
-    );
-    if (shouldFitContent) {
-      paneElement.dataset.panesModeFitContent = 'true';
-    } else {
-      delete paneElement.dataset.panesModeFitContent;
-      delete paneElement.dataset.panesModeFitContentBaselineHeightPx;
-    }
-  }
-
-  syncPaneDimensionsForCollapseState(paneElement);
   const initialOrientation = applyCollapseOrientationClass(paneElement);
   const initiallyCollapsed = paneElement.classList.contains('collapsed');
   ensureFitContentToggle(paneElement);
@@ -397,20 +357,23 @@ export const observePaneCollapseState = (pane: Element): void => {
   const observer = new MutationObserver(mutations => {
     for (const mutation of mutations) {
       if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-        syncPaneDimensionsForCollapseState(paneElement);
         const isCollapsed = paneElement.classList.contains('collapsed');
         const wasCollapsed = paneElement._prevCollapsed ?? isCollapsed;
-        ensureFitContentToggle(paneElement);
-        syncCollapseOrientation(paneElement);
-        ensureMultiColumnToggle(paneElement);
-        if (isCollapsed !== wasCollapsed) {
-          updateTabs(globalState.cachedPanes);
-          const paneIndex = globalState.cachedPanes.indexOf(paneElement);
-          if (paneIndex !== -1) {
-            setActivePaneByIndex(paneIndex, globalState.cachedPanes);
-          }
-          paneElement._prevCollapsed = isCollapsed;
+        if (isCollapsed === wasCollapsed) return;
+
+        if (isCollapsed) {
+          applyCollapseOrientationClass(paneElement);
+          clearPaneDimensions(paneElement);
+        } else {
+          applyPaneDimensions(paneElement);
         }
+
+        updateTabs(globalState.cachedPanes);
+        const paneIndex = globalState.cachedPanes.indexOf(paneElement);
+        if (paneIndex !== -1) {
+          setActivePaneByIndex(paneIndex, globalState.cachedPanes);
+        }
+        paneElement._prevCollapsed = isCollapsed;
       }
     }
   });
