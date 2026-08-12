@@ -369,7 +369,7 @@ const handleToggleCollapse = async () => {
   await exitIfEditing();
   const panes = getSidebarPanes();
   if (panes.length > 0 && isActivePaneIndexValid(panes)) {
-    togglePaneCollapse(globalState.currentActivePaneIndex as number, updateTabs);
+    togglePaneCollapse(globalState.currentActivePaneIndex as number);
   }
 };
 

@@ -24,7 +24,7 @@ type PendingPaneCloseTarget = {
   paneId: string | null;
 };
 
-export const togglePaneCollapse = (index: number, updateTabs: (panes?: Element[]) => void) => {
+export const togglePaneCollapse = (index: number) => {
   if (index < 0 || index >= globalState.cachedPanes.length) return;
   const pane = globalState.cachedPanes[index];
   const collapseButton = pane.querySelector('.rotating-arrow') as HTMLElement;
@@ -92,10 +92,10 @@ export const enforceMaxTabsLimit = (excludePageId?: string): void => {
   }
 };
 
-export const cleanUnusedPanes = (updateTabs: (panes?: Element[]) => void) => {
+export const cleanUnusedPanes = () => {
   const lastActivePanesIds = getLastActivePanes().slice(-globalState.maxTabs);
   if (!lastActivePanesIds || lastActivePanesIds.length === 0) {
-    refreshTabsFromCurrentPanes(updateTabs);
+    refreshTabsFromCurrentPanes();
 
     return;
   }
@@ -110,7 +110,7 @@ export const cleanUnusedPanes = (updateTabs: (panes?: Element[]) => void) => {
   if (panesToClose.length > 0) {
     closePaneByIndexes(panesToClose);
   } else {
-    refreshTabsFromCurrentPanes(updateTabs);
+    refreshTabsFromCurrentPanes();
   }
 };
 
@@ -119,7 +119,7 @@ const cleanupPaneListeners = (pane: Element): void => {
   disconnectPaneCollapseObserver(pane);
 };
 
-const refreshTabsFromCurrentPanes = (updateTabs: (panes?: Element[]) => void) => {
+const refreshTabsFromCurrentPanes = () => {
   const currentPanes = getCurrentSidebarPanes();
   refreshPanesElementsCache(currentPanes);
   updateTabs(currentPanes);
