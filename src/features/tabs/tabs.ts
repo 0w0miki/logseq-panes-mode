@@ -44,7 +44,6 @@ export const createTabsContainer = (): HTMLElement | undefined => {
 const createTab = (
   pane: Element,
   index: number,
-  updateTabs: (currentPanes?: Element[]) => void
 ): HTMLElement => {
   const tab = parent.document.createElement('div');
   tab.className = TABS_CLASSES.tab;
@@ -66,7 +65,7 @@ const createTab = (
   closeButton.onclick = e => {
     const currentIndex = getPaneIndexFromElement(tab);
     e.stopPropagation();
-    closePaneByIndex(currentIndex, updateTabs);
+    closePaneByIndex(currentIndex);
   };
   tab.appendChild(closeButton);
 
@@ -272,7 +271,6 @@ export const updateTabs = (currentPanes?: Element[]): void => {
   }
   if (!tabsContainer) {
     showError('Failed to create tabs container.');
-
     return;
   }
 
@@ -326,7 +324,7 @@ export const updateTabs = (currentPanes?: Element[]): void => {
       };
 
       const createNewTab = () => {
-        tabForCurrentPane = createTab(pane, paneIndex, updateTabs);
+        tabForCurrentPane = createTab(pane, paneIndex);
         tabForCurrentPane.dataset.paneId = paneId;
         if (isActivePane) {
           tabForCurrentPane.classList.add(TABS_CLASSES.activeTab);

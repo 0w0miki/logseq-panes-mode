@@ -362,7 +362,7 @@ const handleCloseCurrentPane = async () => {
   if (panes.length === 0 || !isActivePaneIndexValid(panes)) return;
 
   globalState.cachedPanes = panes;
-  closePaneByIndex(globalState.currentActivePaneIndex as number, updateTabs);
+  closePaneByIndex(globalState.currentActivePaneIndex as number);
 };
 
 const handleToggleCollapse = async () => {

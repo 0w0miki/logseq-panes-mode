@@ -49,7 +49,7 @@ export const togglePaneCollapse = (index: number, updateTabs: (panes?: Element[]
   }, 0.15);
 };
 
-export const closePaneByIndex = (paneIndex: number, _updateTabs: (panes?: Element[]) => void) => {
+export const closePaneByIndex = (paneIndex: number) => {
   const pane = globalState.cachedPanes[paneIndex];
   if (!pane) return;
   const closeButton = getPaneCloseButton(pane);
@@ -60,8 +60,7 @@ export const closePaneByIndex = (paneIndex: number, _updateTabs: (panes?: Elemen
 };
 
 export const closePaneByIndexes = (
-  paneIndexes: number[],
-  updateTabs: (panes?: Element[]) => void
+  paneIndexes: number[]
 ) => {
   const currentPanes = getCurrentSidebarPanes();
   const panesToClose = buildPendingPaneCloseTargets(paneIndexes, currentPanes);
@@ -89,7 +88,7 @@ export const enforceMaxTabsLimit = (excludePageId?: string): void => {
   const fallbackIndex = panes.findIndex(pane => getPaneIdFromPane(pane) !== excludePageId);
   const safeIndex = indexToClose >= 0 ? indexToClose : fallbackIndex;
   if (safeIndex >= 0 && safeIndex < panes.length) {
-    closePaneByIndex(safeIndex, updateTabs);
+    closePaneByIndex(safeIndex);
   }
 };
 
@@ -109,7 +108,7 @@ export const cleanUnusedPanes = (updateTabs: (panes?: Element[]) => void) => {
     }
   });
   if (panesToClose.length > 0) {
-    closePaneByIndexes(panesToClose, updateTabs);
+    closePaneByIndexes(panesToClose);
   } else {
     refreshTabsFromCurrentPanes(updateTabs);
   }
