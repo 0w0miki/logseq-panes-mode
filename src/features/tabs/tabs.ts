@@ -15,18 +15,15 @@ import { centerActiveTabWithPadding, setActivePaneByIndex } from '../panes/paneN
 import { TABS_CLASSES } from './consts';
 import { getPaneIndexFromElement } from './utils';
 
-let draggedPaneId: string | null = null;
-
 // Approved by flesh being
 export const createTabsContainer = (): HTMLElement | undefined => {
   const existingTabsContainer = getTabsContainer(APP_SETTINGS_CONFIG.isVerticalTabs);
   if (existingTabsContainer) return existingTabsContainer;
 
   const tabsContainer = parent.document.createElement('div');
-  const containerClassName = APP_SETTINGS_CONFIG.isVerticalTabs
+  tabsContainer.className = APP_SETTINGS_CONFIG.isVerticalTabs
     ? TABS_CONTAINER_CLASSES.vertical
     : TABS_CONTAINER_CLASSES.horizontal;
-  tabsContainer.className = containerClassName;
 
   if (APP_SETTINGS_CONFIG.isVerticalTabs) {
     const rightSideContainer = parent.document.querySelector('#right-sidebar-container');
@@ -62,9 +59,8 @@ const createTab = (
   const closeButton = parent.document.createElement('span');
   closeButton.className = TABS_CLASSES.tabClose;
   closeButton.innerHTML = '×';
-  closeButton.onclick = e => {
+  closeButton.onclick = () => {
     const currentIndex = getPaneIndexFromElement(tab);
-    e.stopPropagation();
     closePaneByIndex(currentIndex);
   };
   tab.appendChild(closeButton);
@@ -89,13 +85,9 @@ const handleDragStart = (e: DragEvent): void => {
   if (!tabElement || !e.dataTransfer) return;
   globalState.draggedTabIndex = getPaneIndexFromElement(tabElement);
   if (globalState.draggedTabIndex === -1) {
-    draggedPaneId = null;
-
     return;
   }
   const currentPanes = getCurrentSidebarPanes();
-  const draggedPane = currentPanes[globalState.draggedTabIndex];
-  draggedPaneId = draggedPane ? getPaneIdFromPane(draggedPane) : null;
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', globalState.draggedTabIndex.toString());
   tabElement.classList.add(TABS_CLASSES.dragging);
@@ -119,7 +111,6 @@ const handleDragOver = (e: DragEvent): void => {
       TABS_CLASSES.dragOverTop,
       TABS_CLASSES.dragOverBottom
     );
-
     return;
   }
   e.dataTransfer.dropEffect = 'move';
@@ -163,9 +154,6 @@ const handleDragLeave = (e: DragEvent): void => {
 };
 
 const handleDrop = (e: DragEvent): void => {
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
   const target = e.target as HTMLElement;
   const dropTargetTab = target.closest(`.${TABS_CLASSES.tab}`) as HTMLElement;
   dropTargetTab?.classList.remove(
@@ -178,15 +166,12 @@ const handleDrop = (e: DragEvent): void => {
   const isDataAndTargetValid = dropTargetTab && e.dataTransfer;
   if (!isDataAndTargetValid || globalState.draggedTabIndex === null) {
     globalState.draggedTabIndex = null;
-    draggedPaneId = null;
-
     return;
   }
 
   const dropTargetIndex = getPaneIndexFromElement(dropTargetTab);
   if (dropTargetIndex === -1 || globalState.draggedTabIndex === dropTargetIndex) {
     globalState.draggedTabIndex = null;
-
     return;
   }
 
@@ -196,18 +181,13 @@ const handleDrop = (e: DragEvent): void => {
   const isDropBefore = isVerticalTabs ? e.clientY < midPoint : e.clientX < midPoint;
   const scrollableContainer = getScrollablePanesContainer();
   const panes = getCurrentSidebarPanes();
-  const draggedPane =
-    draggedPaneId !== null
-      ? panes.find(pane => getPaneIdFromPane(pane) === draggedPaneId) ||
-        panes[globalState.draggedTabIndex]
-      : panes[globalState.draggedTabIndex];
+  const draggedPane = panes[globalState.draggedTabIndex];
   const dropTargetPane = panes[dropTargetIndex];
   if (!draggedPane) {
     globalState.draggedTabIndex = null;
-    draggedPaneId = null;
-
     return;
   }
+
   globalState.expectedMutations.push(EXPECTED_MUTATIONS.tabDragAndDrop);
   if (isDropBefore) {
     scrollableContainer?.insertBefore(draggedPane, dropTargetPane);
@@ -229,7 +209,6 @@ const handleDrop = (e: DragEvent): void => {
   });
 
   globalState.draggedTabIndex = null;
-  draggedPaneId = null;
   const tabsContainer = getTabsContainer(APP_SETTINGS_CONFIG.isVerticalTabs);
   tabsContainer?.classList.remove('panesMode-tabs-dragging');
 };
@@ -252,14 +231,12 @@ const handleDragEnd = (): void => {
     });
   tabsContainer?.classList.remove('panesMode-tabs-dragging');
   globalState.draggedTabIndex = null;
-  draggedPaneId = null;
-};
+  };
 
 let previousActivePaneIndex: number = 0;
 
 export const resetTabsState = (): void => {
   previousActivePaneIndex = 0;
-  draggedPaneId = null;
 };
 
 // Approved by flesh being
