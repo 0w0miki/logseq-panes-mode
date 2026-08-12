@@ -72,17 +72,6 @@ const syncFitContentToggleState = (pane: HTMLElement): void => {
   button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
 };
 
-const applyPaneWidth = (pane: HTMLElement): void => {
-  const pageId = getPaneIdFromPane(pane);
-  if (!pageId || pane.classList.contains('collapsed')) return;
-
-  const storedDimensions = readPanesDimensionsFromStorage();
-  const storedPaneDimensions = storedDimensions?.[pageId];
-  if (!storedPaneDimensions) return;
-
-  pane.style.width = `${storedPaneDimensions.width}px`;
-};
-
 export const enableFitContentForPane = (pane: Element): void => {
   const paneElement = pane as HTMLElement;
   if (paneElement.classList.contains('collapsed')) return;
@@ -179,6 +168,17 @@ export const applyInitialPaneSizes = (idToPaneMap: Map<string, Element>): void =
       }
     }
   });
+};
+
+const applyPaneWidth = (pane: HTMLElement): void => {
+  const pageId = getPaneIdFromPane(pane);
+  if (!pageId || pane.classList.contains('collapsed')) return;
+
+  const storedDimensions = readPanesDimensionsFromStorage();
+  const storedPaneDimensions = storedDimensions?.[pageId];
+  if (!storedPaneDimensions) return;
+
+  pane.style.width = `${storedPaneDimensions.width}px`;
 };
 
 export const applyPaneDimensions = (pane: HTMLElement): void => {
