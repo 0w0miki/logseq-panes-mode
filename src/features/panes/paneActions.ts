@@ -34,8 +34,8 @@ export const togglePaneCollapse = (index: number, updateTabs: (panes?: Element[]
   void waitForDomChanges(() => {
     const isCollapsedNow = pane.classList.contains('collapsed');
     if (isCurrentlyCollapsed && !isCollapsedNow) {
-      applyPaneDimensions(pane);
       const paneElement = pane as HTMLElement;
+      applyPaneDimensions(paneElement);
       if (paneElement.dataset.panesModeFitContent === 'true') {
         paneElement.style.height = 'auto';
       }

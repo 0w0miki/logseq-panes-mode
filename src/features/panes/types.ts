@@ -8,3 +8,5 @@ export type CollapsiblePane = HTMLElement & {
 export type FitContentToggleOptions = {
   restoreStoredDimensions?: boolean;
 };
+
+export type ToggleType = 'collapse' | 'fit-content' | 'multi-column';

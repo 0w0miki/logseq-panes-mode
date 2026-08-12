@@ -116,6 +116,15 @@ body.panesMode-active {
 
   .cp__right-sidebar .sidebar-item.collapsed {
     width: fit-content;
+
+    .panesMode-fit-content-toggle {
+      display: none;
+    }
+  }
+  .cp__right-sidebar .sidebar-item:not(.collapsed) {
+    .panesMode-collapse-orientation-toggle {
+      display: none;
+    }
   }
 
   .cp__right-sidebar .sidebar-item.panesMode-collapse-vertical.collapsed {
