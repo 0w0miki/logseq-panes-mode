@@ -1,5 +1,5 @@
 import { getPaneCloseButton, getPaneIdFromPane } from '../../core/domUtils';
-import { isActivePaneIndexValid, globalState } from '../../core/pluginGlobalState';
+import { globalState } from '../../core/pluginGlobalState';
 import { getLastActivePanes } from './panePersistence';
 import { getCurrentSidebarPanes, refreshPanesElementsCache } from './paneCache';
 import {
@@ -12,12 +12,6 @@ import { setActivePaneByIndex } from './paneNavigation';
 import { getPluginSettings } from '../../core/pluginSettings';
 import { waitForDomChanges } from '../../core/utils';
 import { updateTabs } from '../tabs/tabs';
-
-type CurrentPaneState = {
-  panes: Element[];
-  activePane: Element | null;
-  activeIndex: number | null;
-};
 
 export const togglePaneCollapse = (index: number) => {
   if (index < 0 || index >= globalState.cachedPanes.length) return;
@@ -60,24 +54,19 @@ export const closePaneByIndexes = async (
   }
 };
 
-export const enforceMaxTabsLimit = (excludePageId?: string): void => {
+export const enforceMaxTabsLimit = (): void => {
   const settings = getPluginSettings();
   if (!settings.autoCloseOldestTab) return;
+
   const panes = getCurrentSidebarPanes();
   if (panes.length <= globalState.maxTabs) return;
+
   const lastActivePanesIds = getLastActivePanes();
   const oldestPaneId = lastActivePanesIds[0];
-  const indexToClose =
-    oldestPaneId !== undefined
-      ? panes.findIndex(pane => {
-          const paneId = getPaneIdFromPane(pane);
-          if (excludePageId && paneId === excludePageId) return false;
-
-          return paneId === oldestPaneId;
-        })
-      : -1;
-  const fallbackIndex = panes.findIndex(pane => getPaneIdFromPane(pane) !== excludePageId);
-  const safeIndex = indexToClose >= 0 ? indexToClose : fallbackIndex;
+  const indexToClose = oldestPaneId !== undefined
+    ? panes.findIndex(pane => getPaneIdFromPane(pane) === oldestPaneId)
+    : -1;
+  const safeIndex = indexToClose >= 0 ? indexToClose : 0;
   if (safeIndex >= 0 && safeIndex < panes.length) {
     closePaneByIndex(safeIndex);
   }
@@ -87,10 +76,10 @@ export const cleanUnusedPanes = () => {
   const lastActivePanesIds = getLastActivePanes().slice(-globalState.maxTabs);
   if (!lastActivePanesIds || lastActivePanesIds.length === 0) {
     refreshTabsFromCurrentPanes();
-
     return;
   }
-  const { panes: currentPanes } = getResolvedCurrentPaneState();
+  const currentPanes = getCurrentSidebarPanes();
+  refreshPanesElementsCache(currentPanes);
   const panesToClose: number[] = [];
   currentPanes.forEach((pane, index) => {
     const paneId = getPaneIdFromPane(pane);
@@ -114,46 +103,4 @@ const refreshTabsFromCurrentPanes = () => {
   const currentPanes = getCurrentSidebarPanes();
   refreshPanesElementsCache(currentPanes);
   updateTabs(currentPanes);
-};
-
-const getResolvedCurrentPaneState = (): CurrentPaneState => {
-  const previousCachedPanes =
-    globalState.cachedPanes.length > 0 ? [...globalState.cachedPanes] : getCurrentSidebarPanes();
-  const previousActivePane =
-    globalState.currentActivePaneIndex !== null
-      ? previousCachedPanes[globalState.currentActivePaneIndex] ?? null
-      : null;
-  const previousActivePaneId = previousActivePane ? getPaneIdFromPane(previousActivePane) : null;
-
-  const panes = getCurrentSidebarPanes();
-  refreshPanesElementsCache(panes);
-
-  if (panes.length === 0) {
-    globalState.currentActivePaneIndex = null;
-
-    return { panes, activePane: null, activeIndex: null };
-  }
-
-  const selectedPane =
-    panes.find(pane => (pane as HTMLElement).classList.contains('selectedPane')) ?? null;
-  const matchedPreviousPane =
-    previousActivePane && panes.includes(previousActivePane) ? previousActivePane : null;
-  const matchedPaneById =
-    !matchedPreviousPane && previousActivePaneId
-      ? panes.find(pane => getPaneIdFromPane(pane) === previousActivePaneId) ?? null
-      : null;
-  const matchedPaneByIndex = isActivePaneIndexValid(panes)
-    ? panes[globalState.currentActivePaneIndex as number] ?? null
-    : null;
-  const activePane =
-    selectedPane ?? matchedPreviousPane ?? matchedPaneById ?? matchedPaneByIndex ?? panes[0];
-  const activeIndex = panes.indexOf(activePane);
-
-  globalState.currentActivePaneIndex = activeIndex === -1 ? 0 : activeIndex;
-
-  return {
-    panes,
-    activePane,
-    activeIndex: globalState.currentActivePaneIndex,
-  };
 };
