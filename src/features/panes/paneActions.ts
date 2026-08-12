@@ -19,11 +19,6 @@ type CurrentPaneState = {
   activeIndex: number | null;
 };
 
-type PendingPaneCloseTarget = {
-  pane: Element;
-  paneId: string | null;
-};
-
 export const togglePaneCollapse = (index: number) => {
   if (index < 0 || index >= globalState.cachedPanes.length) return;
   const pane = globalState.cachedPanes[index];
@@ -56,14 +51,13 @@ export const closePaneByIndex = (paneIndex: number) => {
   closeButton.click();
 };
 
-export const closePaneByIndexes = (
+export const closePaneByIndexes = async (
   paneIndexes: number[]
 ) => {
-  const currentPanes = getCurrentSidebarPanes();
-  const panesToClose = buildPendingPaneCloseTargets(paneIndexes, currentPanes);
-  if (panesToClose.length === 0) return;
-
-  void closePaneTargetsSequentially(panesToClose);
+  for (const index of paneIndexes.sort((a, b) => b - a)) {
+    closePaneByIndex(index);
+    await waitForDomChanges();
+  }
 };
 
 export const enforceMaxTabsLimit = (excludePageId?: string): void => {
@@ -105,7 +99,7 @@ export const cleanUnusedPanes = () => {
     }
   });
   if (panesToClose.length > 0) {
-    closePaneByIndexes(panesToClose);
+    void closePaneByIndexes(panesToClose);
   } else {
     refreshTabsFromCurrentPanes();
   }
@@ -120,52 +114,6 @@ const refreshTabsFromCurrentPanes = () => {
   const currentPanes = getCurrentSidebarPanes();
   refreshPanesElementsCache(currentPanes);
   updateTabs(currentPanes);
-};
-
-const buildPendingPaneCloseTargets = (
-  paneIndexes: number[],
-  currentPanes: Element[]
-): PendingPaneCloseTarget[] =>
-  paneIndexes
-    .map(index => currentPanes[index])
-    .filter((pane): pane is Element => Boolean(pane))
-    .map(pane => ({
-      pane,
-      paneId: getPaneIdFromPane(pane),
-    }));
-
-const resolvePendingPaneCloseTarget = (
-  target: PendingPaneCloseTarget,
-  currentPanes: Element[]
-): Element | null => {
-  if (currentPanes.includes(target.pane)) {
-    return target.pane;
-  }
-
-  if (!target.paneId) return null;
-
-  return currentPanes.find(pane => getPaneIdFromPane(pane) === target.paneId) ?? null;
-};
-
-const closePaneTargetsSequentially = async (targets: PendingPaneCloseTarget[]): Promise<number> => {
-  let closedCount = 0;
-
-  for (const target of targets) {
-    const currentPanes = getCurrentSidebarPanes();
-    const pane = resolvePendingPaneCloseTarget(target, currentPanes);
-    if (!pane) continue;
-
-    const closeButton = getPaneCloseButton(pane);
-    if (!closeButton) continue;
-
-    cleanupPaneListeners(pane);
-    closeButton.click();
-    closedCount++;
-
-    await waitForDomChanges();
-  }
-
-  return closedCount;
 };
 
 const getResolvedCurrentPaneState = (): CurrentPaneState => {
