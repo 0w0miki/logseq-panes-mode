@@ -375,10 +375,6 @@ const ensureMultiColumnToggle = (pane: CollapsiblePane): void => {
     container.insertBefore(toggleButton, container.firstChild);
   }
 
-  const pageId = getPaneIdFromPane(pane);
-  const tracked = pageId ? globalState.multiColumnPageIds.has(pageId) : false;
-  toggleButton.style.display = tracked ? '' : 'none';
-
   const newClickHandler = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
