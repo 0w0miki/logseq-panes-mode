@@ -1,7 +1,7 @@
 import { APP_SETTINGS_CONFIG, TABS_CONTAINER_CLASSES } from '../../core/constants';
 import {
   getPaneTitle,
-  getPaneIdFromPane,
+  getResolvedPaneId,
   getScrollablePanesContainer,
   syncPaneHeaderTitle,
   getTabsContainer,
@@ -45,7 +45,6 @@ const createTab = (
   const tab = parent.document.createElement('div');
   tab.className = TABS_CLASSES.tab;
   tab.dataset.paneIndex = index.toString();
-  tab.dataset.paneId = getPaneIdFromPane(pane) || `pane-${index}`;
   tab.draggable = true;
 
   const isCollapsed = pane.classList.contains('collapsed');
@@ -240,7 +239,10 @@ export const resetTabsState = (): void => {
 };
 
 // Approved by flesh being
-export const updateTabs = (currentPanes?: Element[]): void => {
+// Resolves every pane's final id (cached -> DOM uuid -> plugin API ->
+// title fallback) before committing the tab key, so a tab's dataset.paneId
+// is final: uuid whenever one exists, best-effort fallback otherwise.
+export const updateTabs = async (currentPanes?: Element[]): Promise<void> => {
   const panes = currentPanes || getCurrentSidebarPanes();
   let tabsContainer = getTabsContainer(APP_SETTINGS_CONFIG.isVerticalTabs);
   if (!tabsContainer) {
@@ -251,23 +253,28 @@ export const updateTabs = (currentPanes?: Element[]): void => {
     return;
   }
 
-  const existingTabs = Array.from(
-    tabsContainer.querySelectorAll(`:scope > .${TABS_CLASSES.tab}`)
-  ) as HTMLElement[];
-
-  const existingTabsByPaneId = new Map<string, HTMLElement>();
-  existingTabs.forEach(tab => {
-    const paneId = tab.dataset.paneId;
-    if (paneId) existingTabsByPaneId.set(paneId, tab);
-  });
-
   const newTabs = new Set<HTMLElement>();
   const currentActiveIndex = globalState.currentActivePaneIndex;
 
-  const updateTabsBasedOnCurrentPanes = () => {
+  const updateTabsBasedOnCurrentPanes = async () => {
+    // Resolve every pane's final id before committing tab keys. Cached panes
+    // return instantly; page panes resolve via the shared in-flight API
+    // promise (started at pane birth); block panes have their uuid in the DOM
+    // synchronously.
+    const resolvedIds = await Promise.all(panes.map(pane => getResolvedPaneId(pane)));
+
+    const existingTabs = Array.from(
+      tabsContainer.querySelectorAll(`:scope > .${TABS_CLASSES.tab}`)
+    ) as HTMLElement[];
+    const existingTabsByPaneId = new Map<string, HTMLElement>();
+    existingTabs.forEach(tab => {
+      const paneId = tab.dataset.paneId;
+      if (paneId) existingTabsByPaneId.set(paneId, tab);
+    });
+
     panes.forEach((pane, paneIndex) => {
       syncPaneHeaderTitle(pane);
-      const paneId = getPaneIdFromPane(pane) || `pane-${paneIndex}`;
+      const paneId = resolvedIds[paneIndex] ?? `pane-${paneIndex}`;
       const isCollapsed = pane.classList.contains('collapsed');
       const title = getPaneTitle(pane);
       const isActivePane = paneIndex === currentActiveIndex;
@@ -278,6 +285,10 @@ export const updateTabs = (currentPanes?: Element[]): void => {
       const updateExistingTab = () => {
         newTabs.add(tabForCurrentPane);
         tabForCurrentPane.dataset.paneIndex = paneIndex.toString();
+        // Keep the stored paneId in sync with the committed key.
+        if (tabForCurrentPane.dataset.paneId !== paneId) {
+          tabForCurrentPane.dataset.paneId = paneId;
+        }
 
         const tabText = tabForCurrentPane.querySelector(
           `.${TABS_CLASSES.tabText}`
@@ -327,7 +338,7 @@ export const updateTabs = (currentPanes?: Element[]): void => {
     removeUnusedTabs();
   };
 
-  updateTabsBasedOnCurrentPanes();
+  await updateTabsBasedOnCurrentPanes();
   syncPaneIndices(panes);
 
   const activeTabChanged = previousActivePaneIndex !== currentActiveIndex;

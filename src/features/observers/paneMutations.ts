@@ -5,6 +5,8 @@ import { waitForDomChanges } from '../../core/utils';
 import {
   arePanesDifferent,
   getPaneIdFromPane,
+  getResolvedPaneIdSync,
+  startPaneUuidResolution,
   getScrollablePanesContainer,
   getTabsContainer,
 } from '../../core/domUtils';
@@ -46,7 +48,7 @@ const areTabsSyncedWithPanes = (panes: Element[]): boolean => {
   if (tabs.length !== panes.length) return false;
 
   return tabs.every((tab, index) => {
-    const paneId = getPaneIdFromPane(panes[index]) || `pane-${index}`;
+    const paneId = getResolvedPaneIdSync(panes[index]) ?? `pane-${index}`;
     return tab.dataset.paneId === paneId;
   });
 };
@@ -189,6 +191,9 @@ const handleNewPanes = (
 
   for (const newPane of newPanes) {
     debugLog('[PanesMode] handleNewPanes: new pane', newPane.innerHTML, getPaneIdFromPane(newPane));
+    // Start the plugin-API uuid resolution at pane birth so the cache is
+    // populated early; later consumers share the same memoized resolution.
+    void startPaneUuidResolution(newPane);
     observePaneForResize(resizeObserver, newPane);
     enableFitContentForNewPane(newPane);
     applyPaneDimensions(newPane as HTMLElement);
@@ -375,6 +380,7 @@ const reconcileMissedPaneChange = (
     globalState.expectedMutations.push(EXPECTED_MUTATIONS.newSidebarItemsReordering);
 
     genuinelyNewPanes.forEach(newPane => {
+      void startPaneUuidResolution(newPane);
       observePaneForResize(resizeObserver, newPane);
       enableFitContentForNewPane(newPane);
       applyPaneDimensions(newPane as HTMLElement);

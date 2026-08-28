@@ -1,4 +1,4 @@
-import { getPaneIdFromPane } from '../../core/domUtils';
+import { getResolvedPaneId } from '../../core/domUtils';
 import { globalState } from '../../core/pluginGlobalState';
 import {
   readLastActivePanesFromStorage,
@@ -9,9 +9,16 @@ import {
 import { debounce } from '../../core/utils';
 import { getCurrentSidebarPanes } from './paneCache';
 
-export const updatePanesOrderInStorage = (currentSidebarPanes?: Element[]): void => {
+// Resolves every pane's final id (cached -> DOM uuid -> plugin API -> title
+// fallback) before writing, so the stored panes order uses uuid keys
+// whenever one exists. Callers treat it as fire-and-forget.
+export const updatePanesOrderInStorage = async (
+  currentSidebarPanes?: Element[]
+): Promise<void> => {
   const currentPanes = currentSidebarPanes || getCurrentSidebarPanes();
-  const newPanesOrder = currentPanes.map(pane => getPaneIdFromPane(pane));
+  const newPanesOrder = await Promise.all(
+    currentPanes.map(pane => getResolvedPaneId(pane))
+  );
   if (!Array.isArray(newPanesOrder)) return;
   writePanesOrderToStorage(newPanesOrder);
 };
@@ -20,11 +27,15 @@ export const getInitialPanesOrder = (): string[] => readPanesOrderFromStorage();
 
 let lastActivePanesCache: string[] | null = null;
 
-export const getLastActivePanes = (): string[] => {
+// Resolves every open pane's final id before merging into the cache, so
+// last-active entries are keyed the same way cleanup will query them.
+export const getLastActivePanes = async (): Promise<string[]> => {
   if (lastActivePanesCache === null) {
     lastActivePanesCache = readLastActivePanesFromStorage();
 
-    const currentPaneIds = getCurrentSidebarPanes().map(pane => getPaneIdFromPane(pane)).filter(Boolean) as string[];
+    const currentPaneIds = (
+      await Promise.all(getCurrentSidebarPanes().map(pane => getResolvedPaneId(pane)))
+    ).filter(Boolean) as string[];
     const missingIds = currentPaneIds.filter(id => !lastActivePanesCache.includes(id));
     if (missingIds.length > 0) {
       lastActivePanesCache = missingIds.concat(lastActivePanesCache);
@@ -34,20 +45,23 @@ export const getLastActivePanes = (): string[] => {
   return lastActivePanesCache;
 };
 
-export const addToLastActivePanes = (
+// Stores the pane's final id (cached -> DOM uuid -> plugin API -> title
+// fallback) so the cache entry uses the same key that
+// cleanUnusedPanes/enforceMaxTabsLimit will query.
+export const addToLastActivePanes = async (
   activePaneIndex?: number,
   currentSidebarPanes?: Element[]
-): void => {
+): Promise<void> => {
   const paneIndex = activePaneIndex ?? globalState.currentActivePaneIndex;
   if (paneIndex === null) return;
 
   const currentPane = currentSidebarPanes?.[paneIndex];
   if (!currentPane) return;
 
-  const currentPaneId = getPaneIdFromPane(currentPane);
+  const currentPaneId = await getResolvedPaneId(currentPane);
   if (!currentPaneId) return;
 
-  const current = getLastActivePanes();
+  const current = await getLastActivePanes();
 
   if (current[current.length - 1] === currentPaneId) return;
 

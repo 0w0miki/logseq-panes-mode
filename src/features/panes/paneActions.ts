@@ -1,4 +1,4 @@
-import { getPaneCloseButton, getPaneIdFromPane } from '../../core/domUtils';
+import { getPaneCloseButton, getResolvedPaneId } from '../../core/domUtils';
 import { globalState } from '../../core/pluginGlobalState';
 import { getLastActivePanes } from './panePersistence';
 import { getCurrentSidebarPanes, refreshPanesElementsCache } from './paneCache';
@@ -54,35 +54,48 @@ export const closePaneByIndexes = async (
   }
 };
 
-export const enforceMaxTabsLimit = (): void => {
+export const enforceMaxTabsLimit = async (): Promise<void> => {
   const settings = getPluginSettings();
   if (!settings.autoCloseOldestTab) return;
 
   const panes = getCurrentSidebarPanes();
   if (panes.length <= globalState.maxTabs) return;
 
-  const lastActivePanesIds = getLastActivePanes();
+  const lastActivePanesIds = await getLastActivePanes();
   const oldestPaneId = lastActivePanesIds[0];
-  const indexToClose = oldestPaneId !== undefined
-    ? panes.findIndex(pane => getPaneIdFromPane(pane) === oldestPaneId)
-    : -1;
+  if (oldestPaneId === undefined) return;
+
+  // Resolve every pane to its final id so matching uses the same keys that
+  // addToLastActivePanes wrote (uuid preferred, cached fallback otherwise).
+  const resolvedIds = await Promise.all(panes.map(pane => getResolvedPaneId(pane)));
+  const indexToClose = panes.findIndex((_pane, index) => {
+    const id = resolvedIds[index];
+
+    return id !== null && id === oldestPaneId;
+  });
   const safeIndex = indexToClose >= 0 ? indexToClose : 0;
   if (safeIndex >= 0 && safeIndex < panes.length) {
     closePaneByIndex(safeIndex);
   }
 };
 
-export const cleanUnusedPanes = () => {
-  const lastActivePanesIds = getLastActivePanes().slice(-globalState.maxTabs);
+export const cleanUnusedPanes = async (): Promise<void> => {
+  const lastActivePanesIds = (await getLastActivePanes()).slice(-globalState.maxTabs);
   if (!lastActivePanesIds || lastActivePanesIds.length === 0) {
     refreshTabsFromCurrentPanes();
     return;
   }
   const currentPanes = getCurrentSidebarPanes();
   refreshPanesElementsCache(currentPanes);
+  const activeIndex = globalState.currentActivePaneIndex;
+  const resolvedIds = await Promise.all(currentPanes.map(pane => getResolvedPaneId(pane)));
   const panesToClose: number[] = [];
   currentPanes.forEach((pane, index) => {
-    const paneId = getPaneIdFromPane(pane);
+    // Never auto-close the pane the user is currently looking at.
+    if (index === activeIndex) return;
+    // Match by the same resolved keys that addToLastActivePanes stored; a
+    // pane's own key is in the list if it was activated or merged on init.
+    const paneId = resolvedIds[index];
     if (paneId && !lastActivePanesIds.includes(paneId)) {
       panesToClose.push(index);
     }

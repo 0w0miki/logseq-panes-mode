@@ -1,3 +1,4 @@
+import '@logseq/libs';
 import { APP_SETTINGS_CONFIG, LOGSEQ_UI_SELECTORS, PLUGIN_UI_SELECTORS } from './constants';
 
 type DomQueryOptions = {
@@ -353,15 +354,11 @@ const getRepresentativeBlockId = (pane: Element): string | null => {
   return getUuidElementId(blockElement);
 };
 
-// Approved
-export const getPaneIdFromPane = (pane: Element): string | null => {
+const getUuidFromPaneDom = (pane: Element): string | null => {
   const paneElement = pane as HTMLElement;
   const contentWrapper = pane.querySelector(
     LOGSEQ_UI_SELECTORS.paneContentWrapper
   ) as HTMLElement | null;
-  const isReferencePane = isGenericReferencePane(pane);
-  const attributeId = getPaneAttributeId(paneElement) ?? getPaneAttributeId(contentWrapper);
-  if (attributeId && !isReferencePane) return attributeId;
 
   const paneElementId = getUuidElementId(paneElement);
   if (paneElementId) return paneElementId;
@@ -378,15 +375,137 @@ export const getPaneIdFromPane = (pane: Element): string | null => {
     }
   }
 
+  return null;
+};
+
+// Returns the pane's uuid when one is available (from the DOM or a cached
+// resolution), otherwise null. Never falls back to the pane title, so
+// consumers can distinguish "uuid not resolved yet" from "no stable id".
+
+// Per-pane cache of the pane's final committed id: a uuid when one exists
+// (from the DOM or the plugin API), otherwise the fallback (title). Uuid-pure
+// readers (getPaneUuidFromPane, startPaneUuidResolution) filter with
+// isUuidLike so fallback entries stay invisible; final-key readers
+// (getResolvedPaneId/getResolvedPaneIdSync) read raw.
+const resolvedPaneIds = new WeakMap<Element, string | null>();
+
+// In-flight API resolution promises, so every consumer awaits the same
+// resolution instead of issuing duplicate getPage calls.
+const pendingUuidResolutions = new WeakMap<Element, Promise<string | null>>();
+
+// Kicks off (or reuses) the pane uuid resolution via the plugin API and
+// returns the promise. Called at pane birth so the API round-trip starts
+// immediately; the settled uuid is cached and read synchronously by
+// getPaneUuidFromPane afterwards. Only uuid-shaped cached values count as
+// settled — a committed fallback is not a resolution.
+export const startPaneUuidResolution = (pane: Element): Promise<string | null> => {
+  const settled = resolvedPaneIds.get(pane);
+  if (settled && isUuidLike(settled)) return Promise.resolve(settled);
+
+  const pending = pendingUuidResolutions.get(pane);
+  if (pending) return pending;
+
+  const promise = resolvePaneUuidViaApi(pane).finally(() => {
+    pendingUuidResolutions.delete(pane);
+  });
+  pendingUuidResolutions.set(pane, promise);
+
+  return promise;
+};
+
+// Best-effort async resolver: returns the page uuid for plain page panes,
+// null for block/reference panes (their uuid is in the DOM) and when the
+// header title is not a resolvable page name. Results are cached per pane
+// element once settled.
+const resolvePaneUuidViaApi = async (pane: Element): Promise<string | null> => {
+  if (getUuidFromPaneDom(pane)) return null; // DOM uuid already available
+  if (isGenericReferencePane(pane)) return null; // reference panes use DOM blockid
+
+  const header = getHeaderPaneTitle(pane);
+  // Breadcrumb ("Page > block text") means a block pane, not a page pane;
+  // resolving arbitrary block text as a page name would misidentify the pane.
+  if (!header || header.includes(' > ')) return null;
+
+  try {
+    const page = await logseq.Editor.getPage(header);
+    if (page?.uuid) {
+      resolvedPaneIds.set(pane, page.uuid);
+      return page.uuid;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+};
+
+export const getPaneUuidFromPane = (pane: Element): string | null => {
+  const paneElement = pane as HTMLElement;
+  const contentWrapper = pane.querySelector(
+    LOGSEQ_UI_SELECTORS.paneContentWrapper
+  ) as HTMLElement | null;
+  const isReferencePane = isGenericReferencePane(pane);
+
+  // Only uuid-shaped attribute ids (data-page/data-refs-self holding a block
+  // uuid) are unique enough; page-name attributes are not.
+  const attributeId = getPaneAttributeId(paneElement) ?? getPaneAttributeId(contentWrapper);
+  if (attributeId && !isReferencePane && isUuidLike(attributeId)) return attributeId;
+
+  const domUuid = getUuidFromPaneDom(pane);
+  if (domUuid) return domUuid;
+
   if (isReferencePane) {
     const representativeBlockId = getRepresentativeBlockId(pane);
     if (representativeBlockId) return representativeBlockId;
-    if (attributeId) return attributeId;
   }
+
+  // Last resort before giving up: a uuid already cached (API-resolved or
+  // DOM-rendered). Filtered by isUuidLike so a committed fallback (title/
+  // attribute) is never mistaken for a uuid.
+  const cached = resolvedPaneIds.get(pane);
+  if (cached && isUuidLike(cached)) return cached;
+
+  return null;
+};
+
+// Best-effort stable id: the uuid when one exists, otherwise the pane title
+// (for panes whose DOM/API never yield a uuid).
+export const getPaneIdFromPane = (pane: Element): string | null => {
+  const uuid = getPaneUuidFromPane(pane);
+  if (uuid) return uuid;
 
   const paneTitle = getPaneTitle(pane);
 
   return paneTitle !== 'Untitled' ? paneTitle : null;
+};
+
+// Synchronous read of the committed id, for comparisons in the sync loop.
+export const getResolvedPaneIdSync = (pane: Element): string | null => {
+  const cached = resolvedPaneIds.get(pane);
+
+  return cached === undefined ? null : cached;
+};
+
+// Async resolution of the pane's final id: cached -> DOM uuid -> plugin API
+// (page panes) -> title fallback. Cached per pane so every consumer (tabs,
+// panes order, last-active, cleanup) reads the same key.
+export const getResolvedPaneId = async (pane: Element): Promise<string | null> => {
+  const cached = resolvedPaneIds.get(pane);
+  if (cached !== undefined) return cached;
+
+  const uuid = getPaneUuidFromPane(pane);
+  if (uuid) {
+    resolvedPaneIds.set(pane, uuid);
+    return uuid;
+  }
+
+  const apiUuid = await startPaneUuidResolution(pane);
+  if (apiUuid) return apiUuid;
+
+  const final = getPaneIdFromPane(pane);
+  resolvedPaneIds.set(pane, final);
+
+  return final;
 };
 
 export const isRightSidebarVisible = (): boolean => Boolean(getRightSidebarContainer());
