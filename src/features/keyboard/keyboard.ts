@@ -26,31 +26,7 @@ import { getPluginSettings } from '../../core/pluginSettings';
 
 let cleanupPaletteHotkeys: (() => void) | null = null;
 
-const isBindingAlreadyRegistered = (
-  commandKey: string,
-  binding: string,
-  existingShortcuts: Record<string, string | string[] | undefined>
-) => {
-  const pluginId = logseq.baseInfo?.id ? `plugin.${logseq.baseInfo.id}/${commandKey}` : commandKey;
-  const existing = existingShortcuts[pluginId] ?? existingShortcuts[commandKey];
-  const normalizedTarget = binding.toLowerCase();
-  if (existing) {
-    const bindings = Array.isArray(existing) ? existing : [existing];
-    if (bindings.some(b => b?.toLowerCase() === normalizedTarget)) return true;
-  }
-
-  return Object.values(existingShortcuts).some(value => {
-    if (!value) return false;
-    const list = Array.isArray(value) ? value : [value];
-
-    return list.some(b => b?.toLowerCase() === normalizedTarget);
-  });
-};
-
-const createShortcutRegistrar = (
-  usedBindings: Set<string>,
-  existingShortcuts: Record<string, string | string[] | undefined>
-) => {
+const createShortcutRegistrar = () => {
   return (
     key: string,
     label: string,
@@ -72,29 +48,16 @@ const createShortcutRegistrar = (
 
     if (!binding || !registerBinding) return;
 
-    const normalizedBinding = binding.trim().toLowerCase();
-    if (!normalizedBinding || usedBindings.has(normalizedBinding)) return;
-
-    usedBindings.add(normalizedBinding);
-
     try {
-      if (!isBindingAlreadyRegistered(key, normalizedBinding, existingShortcuts)) {
-        logseq.App.registerCommandShortcut({ binding }, wrappedHandler, {
-          key,
-          label,
-          desc: label,
-        });
-      }
+      logseq.App.registerCommandShortcut({ binding }, wrappedHandler, {
+        key,
+        label,
+        desc: label,
+      });
     } catch (err: any) {
       debugInfo(`[PanesMode] Skipping duplicate shortcut ${binding}:`, err?.message ?? err);
     }
   };
-};
-
-const getExistingShortcuts = async (): Promise<Record<string, string | string[] | undefined>> => {
-  const userConfigs = await logseq.App.getUserConfigs().catch(() => null);
-
-  return (userConfigs as any)?.shortcuts ?? {};
 };
 
 // --- Command palette ---
@@ -455,6 +418,20 @@ const logLocalStorage = () => {
   debugInfo(`[PanesMode] Local storage (${keys.length})`, entries);
 };
 
+const logUserConfigs = async () => {
+  try {
+    const userConfigs = await logseq.App.getUserConfigs();
+    debugInfo('[PanesMode] getUserConfigs() manual trigger:', {
+      allKeys: userConfigs ? Object.keys(userConfigs) : null,
+      hasShortcuts: !!(userConfigs as any)?.shortcuts,
+      shortcuts: (userConfigs as any)?.shortcuts ?? null,
+      fullRaw: userConfigs,
+    });
+  } catch (err: any) {
+    debugInfo('[PanesMode] getUserConfigs() failed:', err?.message ?? err);
+  }
+};
+
 // --- Shortcut group registrations ---
 
 const registerModeShortcuts = (
@@ -514,7 +491,7 @@ const registerPaneManagementShortcuts = (
   registerShortcut(
     'panesMode.multiColumn',
     'Toggle multi-column for pane',
-    'mod+shift+m',
+    'mod+alt+m',
     toggleMultiColumnForActivePane
   );
   registerShortcut(
@@ -534,11 +511,11 @@ const registerPaneManagementShortcuts = (
     () => handlePaneResize('Right')
   );
   registerShortcut(
-    'panesMode.resizeUp', 'Grow active pane height', 'mod+shift+up',
+    'panesMode.resizeUp', 'Grow active pane height', 'mod+alt+up',
     () => handlePaneResize('Up')
   );
   registerShortcut(
-    'panesMode.resizeDown', 'Shrink active pane height', 'mod+shift+down',
+    'panesMode.resizeDown', 'Shrink active pane height', 'mod+alt+down',
     () => handlePaneResize('Down')
   );
   registerShortcut(
@@ -557,7 +534,7 @@ const registerPaneManagementShortcuts = (
 
 const registerModalShortcuts = (registerShortcut: ReturnType<typeof createShortcutRegistrar>) => {
   registerShortcut('panesMode.paneSwitcher', 'Toggle pane search', 'mod+s', togglePaneSwitcher);
-  registerShortcut('panesMode.projects', 'Toggle projects', 'mod+shift+s', toggleProjects);
+  registerShortcut('panesMode.projects', 'Toggle projects', 'mod+alt+s', toggleProjects);
 };
 
 const registerDebugShortcuts = (registerShortcut: ReturnType<typeof createShortcutRegistrar>) => {
@@ -570,8 +547,14 @@ const registerDebugShortcuts = (registerShortcut: ReturnType<typeof createShortc
   registerShortcut(
     'panesMode.logLocalStorage',
     'Log local storage',
-    'mod+shift+o',
+    'mod+alt+o',
     logLocalStorage
+  );
+  registerShortcut(
+    'panesMode.debugGetUserConfigs',
+    'Log getUserConfigs() raw return',
+    'mod+shift+.',
+    logUserConfigs
   );
 };
 
@@ -641,9 +624,7 @@ export const setupKeyboardShortcuts = async (togglePanesModeMode: () => Promise<
   }
   (setupKeyboardShortcuts as any)._alreadyRegistered = true;
 
-  const existingShortcuts = await getExistingShortcuts();
-  const usedBindings = new Set<string>();
-  const registerShortcut = createShortcutRegistrar(usedBindings, existingShortcuts);
+  const registerShortcut = createShortcutRegistrar();
 
   registerModeShortcuts(registerShortcut, togglePanesModeMode);
   registerPaneNavigationShortcuts(registerShortcut);
