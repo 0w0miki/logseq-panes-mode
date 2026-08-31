@@ -27,6 +27,7 @@ import { getCurrentSidebarPanes, refreshPanesElementsCache } from '../panes/pane
 import { setActivePaneByIndex } from '../panes/paneNavigation';
 import { updatePanesOrderInStorage } from '../panes/panePersistence';
 import { updateTabs } from '../tabs/tabs';
+import type { PaneElement } from '../panes/types';
 import { getAllProjectsList, saveProject, deleteProject, getProjectById } from './projectStorage';
 import { PROJECTS_CLASSES } from './consts';
 import { createProjectsModalHTML } from './projectsView';
@@ -296,7 +297,7 @@ const applyProjectPaneLayout = (project: ProjectListItem['data'], container: HTM
   updatePanesOrderInStorage(reorderedPanes);
 
   idToPaneMap.forEach((pane, pageId) => {
-    const paneElement = pane as HTMLElement;
+    const paneElement = pane as PaneElement;
 
     const dims = project.paneDimensions[pageId];
     if (dims) {
@@ -306,7 +307,7 @@ const applyProjectPaneLayout = (project: ProjectListItem['data'], container: HTM
 
     const fitContent = project.paneFitContentHeight[pageId];
     if (fitContent) {
-      paneElement.dataset.panesModeFitContent = 'true';
+      paneElement._fitContentActive = true;
       paneElement.style.height = 'auto';
     }
 

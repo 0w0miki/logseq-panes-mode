@@ -28,6 +28,7 @@ import {
   disconnectPaneCollapseObserver,
   removeScrollListenerFromPane,
 } from './features/panes/paneLayout';
+import type { PaneElement } from './features/panes/types';
 import { getCurrentSidebarPanes, refreshPanesElementsCache } from './features/panes/paneCache';
 import { createPaneResizeObserver, addPanesResizeObserver } from './features/panes/paneResize';
 import {
@@ -328,7 +329,7 @@ const resetBodyClasses = () => {
 
 const resetPanesState = () => {
   getCurrentSidebarPanes().forEach(pane => {
-    const paneElement = pane as HTMLElement;
+    const paneElement = pane as PaneElement;
 
     paneElement.style.width = '';
     paneElement.style.height = '';
@@ -339,8 +340,10 @@ const resetPanesState = () => {
       'selectedPane'
     );
 
-    delete paneElement.dataset.panesModeFitContent;
-    delete paneElement.dataset.panesModeFitContentBaselineHeightPx;
+    delete paneElement._prevCollapsed;
+    paneElement._fitContentActive = false;
+    paneElement._fitContentBaselineHeightPx = undefined;
+    paneElement._isResizeObserved = undefined;
     delete paneElement.dataset.currentIndex;
 
     paneElement
@@ -350,11 +353,6 @@ const resetPanesState = () => {
       .querySelectorAll('.panesMode-collapse-orientation-toggle')
       .forEach(toggle => toggle.remove());
     paneElement.querySelectorAll('.panesMode-pane-drop-zones').forEach(zones => zones.remove());
-
-    delete (paneElement as any)._prevCollapsed;
-    if ((pane as any)._isResizeObserved) {
-      delete (pane as any)._isResizeObserved;
-    }
 
     disconnectPaneCollapseObserver(pane);
     removeScrollListenerFromPane(pane);

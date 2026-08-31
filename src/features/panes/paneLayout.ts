@@ -13,7 +13,7 @@ import { setActivePaneByIndex } from './paneNavigation';
 import { globalState } from '../../core/pluginGlobalState';
 import { updateTabs } from '../tabs/tabs';
 import { toggleMultiColumnForPane } from './paneMultiColumn';
-import type { CollapseOrientation, CollapsiblePane, FitContentToggleOptions, ToggleType } from './types';
+import type { CollapseOrientation, PaneElement, FitContentToggleOptions, ToggleType } from './types';
 
 const getVirtuosoScrollElement = (): HTMLElement | null => {
   if (!APP_SETTINGS_CONFIG.isDBVersion) return null;
@@ -37,7 +37,7 @@ export const notifyVirtuosoScroll = (): void => {
 };
 
 const isFitContentEnabled = (pane: HTMLElement): boolean =>
-  pane.dataset.panesModeFitContent === 'true';
+  (pane as PaneElement)._fitContentActive === true;
 
 const hasStoredPaneHeight = (storedDimensions: PaneDimensions | undefined): boolean =>
   Number.isFinite(storedDimensions?.height) && (storedDimensions?.height ?? 0) > 0;
@@ -73,16 +73,16 @@ const syncFitContentToggleState = (pane: HTMLElement): void => {
 };
 
 export const enableFitContentForPane = (pane: Element): void => {
-  const paneElement = pane as HTMLElement;
+  const paneElement = pane as PaneElement;
   if (paneElement.classList.contains('collapsed')) return;
 
   const pageId = getPaneIdFromPane(paneElement);
-  paneElement.dataset.panesModeFitContent = 'true';
+  paneElement._fitContentActive = true;
   if (pageId) {
     writePaneFitContentHeightToStorage(pageId, true);
   }
   paneElement.style.height = 'auto';
-  paneElement.dataset.panesModeFitContentBaselineHeightPx = paneElement.offsetHeight.toString();
+  paneElement._fitContentBaselineHeightPx = paneElement.offsetHeight;
   syncFitContentToggleState(paneElement);
 };
 
@@ -90,10 +90,10 @@ export const disableFitContentForPane = (
   pane: Element,
   options?: FitContentToggleOptions
 ): void => {
-  const paneElement = pane as HTMLElement;
+  const paneElement = pane as PaneElement;
   if (!paneElement) return;
-  delete paneElement.dataset.panesModeFitContent;
-  delete paneElement.dataset.panesModeFitContentBaselineHeightPx;
+  paneElement._fitContentActive = false;
+  paneElement._fitContentBaselineHeightPx = undefined;
 
   const pageId = getPaneIdFromPane(paneElement);
   if (pageId) {
@@ -152,13 +152,13 @@ export const applyInitialPaneSizes = (idToPaneMap: Map<string, Element>): void =
       paneId, storedDimensions, storedFitContentHeight
     );
 
-    const paneElement = pane as HTMLElement;
+    const paneElement = pane as PaneElement;
     if (shouldFitContent) {
-      paneElement.dataset.panesModeFitContent = 'true';
+      paneElement._fitContentActive = true;
       paneElement.style.height = 'auto';
     } else {
-      delete paneElement.dataset.panesModeFitContent;
-      delete paneElement.dataset.panesModeFitContentBaselineHeightPx;
+      paneElement._fitContentActive = false;
+      paneElement._fitContentBaselineHeightPx = undefined;
     }
 
     if (storedDimensions) {
@@ -255,7 +255,7 @@ const TOGGLE_CONFIG: Record<ToggleType, { className: string; title: string; text
   'multi-column': { className: 'panesMode-multicol-toggle', title: 'Toggle multi-column', textContent: '◫' },
 };
 
-const getOrCreateToggleButton = (pane: CollapsiblePane, type: ToggleType): HTMLButtonElement | null => {
+const getOrCreateToggleButton = (pane: PaneElement, type: ToggleType): HTMLButtonElement | null => {
   const config = TOGGLE_CONFIG[type];
 
   let container = pane.querySelector('.item-actions') as HTMLElement | null;
@@ -278,7 +278,7 @@ const getOrCreateToggleButton = (pane: CollapsiblePane, type: ToggleType): HTMLB
   return toggleButton;
 }
 
-const ensureFitContentToggle = (pane: CollapsiblePane): void => {
+const ensureFitContentToggle = (pane: PaneElement): void => {
   const toggleButton = getOrCreateToggleButton(pane, 'fit-content');
   if (!toggleButton) return;
 
@@ -302,7 +302,7 @@ const ensureFitContentToggle = (pane: CollapsiblePane): void => {
 };
 
 const ensureCollapseOrientationToggle = (
-  pane: CollapsiblePane,
+  pane: PaneElement,
   orientation: CollapseOrientation
 ): void => {
   const toggleButton = getOrCreateToggleButton(pane, 'collapse');
@@ -325,7 +325,7 @@ const ensureCollapseOrientationToggle = (
   toggleButton.addEventListener('click', newClickHandler);
 };
 
-const ensureMultiColumnToggle = (pane: CollapsiblePane): void => {
+const ensureMultiColumnToggle = (pane: PaneElement): void => {
   const toggleButton = getOrCreateToggleButton(pane, 'multi-column');
   if (!toggleButton) return;
 
@@ -344,7 +344,7 @@ const ensureMultiColumnToggle = (pane: CollapsiblePane): void => {
 
 export const observePaneCollapseState = (pane: Element): void => {
   if (!pane) return;
-  const paneElement = pane as CollapsiblePane;
+  const paneElement = pane as PaneElement;
   if (paneElement._collapseObserver) return;
 
   const initialOrientation = applyCollapseOrientationClass(paneElement);
@@ -383,7 +383,7 @@ export const observePaneCollapseState = (pane: Element): void => {
 };
 
 export const disconnectPaneCollapseObserver = (pane: Element): void => {
-  const paneElement = pane as CollapsiblePane;
+  const paneElement = pane as PaneElement;
   paneElement._collapseObserver?.disconnect();
   delete paneElement._collapseObserver;
 };

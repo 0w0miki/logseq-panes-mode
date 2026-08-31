@@ -8,6 +8,7 @@ import {
   writePaneDimensionsToStorage,
 } from '../../core/storage';
 import { debounce } from '../../core/utils';
+import type { PaneElement } from './types';
 import {
   addScrollListenerToPane,
   disableFitContentForPane,
@@ -23,9 +24,10 @@ export const createPaneResizeObserver = (): ResizeObserver => {
 export const observePaneForResize = (resizeObserver: ResizeObserver, pane: Element): void => {
   if (!pane) return;
   observePaneCollapseState(pane);
-  if ((pane as any)._isResizeObserved) return;
+  const paneElement = pane as PaneElement;
+  if (paneElement._isResizeObserved) return;
   resizeObserver.observe(pane);
-  (pane as any)._isResizeObserved = true;
+  paneElement._isResizeObserved = true;
   addScrollListenerToPane(pane);
   updateMultiColumnForPane(pane);
 };
@@ -113,7 +115,7 @@ const handleResize = (entries: ResizeObserverEntry[]) => {
   if (!globalState.isPanesModeModeActive) return;
   const isBatchResize = entries.length > 1;
   entries.forEach(entry => {
-    const pane = entry.target as HTMLElement;
+    const pane = entry.target as PaneElement;
     if (pane.id === 'right-sidebar-container') return;
     queueMultiColumnUpdate(pane);
     if (pane.classList.contains('collapsed')) return;
@@ -124,28 +126,27 @@ const handleResize = (entries: ResizeObserverEntry[]) => {
     const height = Math.round(borderBox?.blockSize ?? entry.target.getBoundingClientRect().height);
 
     debugLog('[PanesMode] handleResize ', {
-      fitContent: pane.dataset.panesModeFitContent,
+      fitContent: pane._fitContentActive,
       styleHeight: pane.style.height,
       height: height,
     });
 
-    if (pane.dataset.panesModeFitContent === 'true' && !pane.dataset.panesModeFitContentBaselineHeightPx) {
-      pane.dataset.panesModeFitContentBaselineHeightPx = height.toString();
-      debugLog(`[PanesMode] set fit content baseline height to ${pane.dataset.panesModeFitContentBaselineHeightPx}`)
+    if (pane._fitContentActive && pane._fitContentBaselineHeightPx === undefined) {
+      pane._fitContentBaselineHeightPx = height;
+      debugLog(`[PanesMode] set fit content baseline height to ${pane._fitContentBaselineHeightPx}`)
       if (!isBatchResize) queuePaneWidthSave(pane, entry);
       return;
     }
 
     if (isBatchResize) return;
 
-    if (pane.dataset.panesModeFitContent !== 'true') {
+    if (!pane._fitContentActive) {
       queuePaneResizeSave(pane, entry);
       return;
     }
 
     // Fit content
-    const baselineHeight = parseInt(pane.dataset.panesModeFitContentBaselineHeightPx ?? '', 10);
-    const baseline = Number.isFinite(baselineHeight) ? baselineHeight : height;
+    const baseline = pane._fitContentBaselineHeightPx ?? height;
     const heightDiff = Math.abs(height - baseline);
 
     if (heightDiff >= FIT_CONTENT_HEIGHT_CHANGE_THRESHOLD_PX) {
