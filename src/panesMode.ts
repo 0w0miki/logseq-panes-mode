@@ -25,7 +25,8 @@ import { applyInitialPanesOrder } from './features/panes/paneOrdering';
 import {
   applyInitialPaneSizes,
   addScrollListenersToAllPanes,
-  disconnectPaneCollapseObserver,
+  resetPaneCollapse,
+  cleanupPaneToggles,
   removeScrollListenerFromPane,
 } from './features/panes/paneLayout';
 import type { PaneElement } from './features/panes/types';
@@ -40,7 +41,10 @@ import { setupShiftClickPaneTracking } from './features/panes/shiftActions/paneS
 import { setActivePaneByIndex, resetActiveTabIndex } from './features/panes/paneNavigation';
 import { setupKeyboardShortcuts } from './features/keyboard/keyboard';
 import { setupMousePaneFocus } from './features/panes/paneFocusListeners';
-import { setupNativeDragDropListener } from './features/panes/paneNativeDnd';
+import {
+  resetPaneDropZones,
+  setupNativeDragDropListener,
+} from './features/panes/paneNativeDnd';
 import { createTabsContainer, resetTabsState, updateTabs } from './features/tabs/tabs';
 import {
   cleanupPaneSwitcher,
@@ -331,14 +335,9 @@ const resetPanesState = () => {
   getCurrentSidebarPanes().forEach(pane => {
     const paneElement = pane as PaneElement;
 
-    paneElement.style.width = '';
-    paneElement.style.height = '';
-    paneElement.classList.remove(
-      'panesMode-collapse-vertical',
-      'panesMode-collapse-horizontal',
-      'panesMode-pane-drag-target',
-      'selectedPane'
-    );
+    resetPaneCollapse(paneElement);
+    resetPaneDropZones(paneElement);
+    paneElement.classList.remove('selectedPane');
 
     delete paneElement._prevCollapsed;
     paneElement._fitContentActive = false;
@@ -346,15 +345,8 @@ const resetPanesState = () => {
     paneElement._isResizeObserved = undefined;
     delete paneElement.dataset.currentIndex;
 
-    paneElement
-      .querySelectorAll('.panesMode-fit-content-toggle')
-      .forEach(toggle => toggle.remove());
-    paneElement
-      .querySelectorAll('.panesMode-collapse-orientation-toggle')
-      .forEach(toggle => toggle.remove());
-    paneElement.querySelectorAll('.panesMode-pane-drop-zones').forEach(zones => zones.remove());
+    cleanupPaneToggles(paneElement);
 
-    disconnectPaneCollapseObserver(pane);
     removeScrollListenerFromPane(pane);
   });
 };

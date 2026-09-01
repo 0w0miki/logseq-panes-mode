@@ -321,3 +321,8 @@ export const setupNativeDragDropListener = (): (() => void) => {
     resetDragAndDropData();
   };
 };
+
+export const resetPaneDropZones = (pane: HTMLElement): void => {
+  pane.classList.remove(DROP_ZONE_CLASSES.paneIsDragTarget);
+  pane.querySelectorAll(`.${DROP_ZONE_CLASSES.container}`).forEach(zones => zones.remove());
+};

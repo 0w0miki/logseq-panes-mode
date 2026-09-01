@@ -387,3 +387,18 @@ export const disconnectPaneCollapseObserver = (pane: Element): void => {
   paneElement._collapseObserver?.disconnect();
   delete paneElement._collapseObserver;
 };
+
+export const resetPaneCollapse = (pane: PaneElement): void => {
+  pane.classList.remove(
+    COLLAPSE_ORIENTATION_CLASSES.vertical,
+    COLLAPSE_ORIENTATION_CLASSES.horizontal
+  );
+  clearPaneDimensions(pane);
+  disconnectPaneCollapseObserver(pane);
+};
+
+export const cleanupPaneToggles = (pane: PaneElement): void => {
+  Object.values(TOGGLE_CONFIG).forEach(({ className }) => {
+    pane.querySelectorAll(`.${className}`).forEach(toggle => toggle.remove());
+  });
+};
