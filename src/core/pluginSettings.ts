@@ -465,7 +465,7 @@ export const initPluginSettings = async (): Promise<PluginSettings> => {
   const merged = mergeSettings(logseq.settings as Partial<PluginSettings>);
   applySettingsToRuntime(merged);
 
-  logseq.onSettingsChanged((newSettings, oldSettings) => {
+  logseq.onSettingsChanged(newSettings => {
     const previous = currentSettings;
     const mergedSettings = mergeSettings({
       ...previous,

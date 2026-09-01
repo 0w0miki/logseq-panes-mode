@@ -90,7 +90,7 @@ export const cleanUnusedPanes = async (): Promise<void> => {
   const activeIndex = globalState.currentActivePaneIndex;
   const resolvedIds = await Promise.all(currentPanes.map(pane => getResolvedPaneId(pane)));
   const panesToClose: number[] = [];
-  currentPanes.forEach((pane, index) => {
+  currentPanes.forEach((_pane, index) => {
     // Never auto-close the pane the user is currently looking at.
     if (index === activeIndex) return;
     // Match by the same resolved keys that addToLastActivePanes stored; a

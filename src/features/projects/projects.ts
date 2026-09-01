@@ -624,16 +624,6 @@ const updateAddButtonVisibility = (query: string): void => {
   }
 };
 
-const formatDate = (timestamp: number): string => {
-  const date = new Date(timestamp);
-
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-};
-
 const updateProjectsListImmediate = async (query: string): Promise<void> => {
   const modal = getParentElementById<HTMLElement>(PLUGIN_UI_SELECTORS.projectsModalId);
   if (!modal) return;

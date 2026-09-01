@@ -196,7 +196,6 @@ const getSearchItems = (container: HTMLElement): { all: HTMLElement[]; leaf: HTM
 
 const findSearchItemForElement = (
   element: HTMLElement | null,
-  container: HTMLElement,
   items: HTMLElement[]
 ): HTMLElement | null => {
   if (!element) return null;
@@ -210,13 +209,13 @@ const resolveSearchItemElement = (
   allItems: HTMLElement[],
   leafItems: HTMLElement[]
 ): HTMLElement | null => {
-  const fromLeaf = findSearchItemForElement(element, container, leafItems);
+  const fromLeaf = findSearchItemForElement(element, leafItems);
   if (fromLeaf) return fromLeaf;
 
   const containingLeaf = leafItems.find(item => element.contains(item));
   if (containingLeaf) return containingLeaf;
 
-  const fromAll = findSearchItemForElement(element, container, allItems);
+  const fromAll = findSearchItemForElement(element, allItems);
   if (fromAll) return fromAll;
 
   const itemSelector = getSearchItemSelector();
@@ -279,16 +278,16 @@ const getSearchSelectedItem = (container: HTMLElement): HTMLElement | null => {
 
 const findSearchItem = (target: HTMLElement, container: HTMLElement): HTMLElement | null => {
   const { leaf } = getSearchItems(container);
-  const normalized = findSearchItemForElement(target, container, leaf);
+  const normalized = findSearchItemForElement(target, leaf);
   if (normalized) return normalized;
 
   if (container.contains(target) && target.querySelector(SEARCH_HIGHLIGHTED_SPAN_SELECTOR)) {
-    return findSearchItemForElement(target, container, leaf);
+    return findSearchItemForElement(target, leaf);
   }
 
   const highlight = target.closest(SEARCH_HIGHLIGHTED_SPAN_SELECTOR) as HTMLElement | null;
   if (highlight) {
-    const fromHighlight = findSearchItemForElement(highlight, container, leaf);
+    const fromHighlight = findSearchItemForElement(highlight, leaf);
     if (fromHighlight) return fromHighlight;
   }
 

@@ -118,10 +118,8 @@ export const centerActiveTabWithPadding = (
   });
 };
 
-let previousActiveTabIndex: number = 0;
-
 export const resetActiveTabIndex = (): void => {
-  previousActiveTabIndex = 0;
+  // no-op: previousActiveTabIndex was removed (dead state, never read)
 };
 
 export const updateActiveTab = (scrollBehavior: ScrollBehavior = 'smooth'): void => {
@@ -143,12 +141,10 @@ export const updateActiveTab = (scrollBehavior: ScrollBehavior = 'smooth'): void
       : undefined;
 
   if (activeTab) {
-    previousActiveTabIndex = newIndex;
     requestAnimationFrame(() => {
       centerActiveTabWithPadding(tabsContainer, activeTab, scrollBehavior);
     });
   } else if (newIndex !== null) {
-    previousActiveTabIndex = newIndex;
   }
 };
 

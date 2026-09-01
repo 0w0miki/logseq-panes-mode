@@ -86,7 +86,6 @@ const handleDragStart = (e: DragEvent): void => {
   if (globalState.draggedTabIndex === -1) {
     return;
   }
-  const currentPanes = getCurrentSidebarPanes();
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', globalState.draggedTabIndex.toString());
   tabElement.classList.add(TABS_CLASSES.dragging);

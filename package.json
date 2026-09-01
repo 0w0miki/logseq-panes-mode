@@ -11,7 +11,7 @@
   },
   "scripts": {
     "dev": "webpack --mode=development --watch",
-    "build": "webpack --mode=production"
+    "build": "tsc --noEmit && webpack --mode=production"
   },
   "dependencies": {
     "@logseq/libs": "^0.0.17"
