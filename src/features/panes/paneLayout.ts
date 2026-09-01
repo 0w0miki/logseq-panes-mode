@@ -1,5 +1,5 @@
 import { APP_SETTINGS_CONFIG } from '../../core/constants';
-import { getPaneIdFromPane } from '../../core/domUtils';
+import { getPaneIdFromPane, getScrollablePanesContainer } from '../../core/domUtils';
 import {
   PaneDimensions,
   readPanesDimensionsFromStorage,
@@ -22,8 +22,7 @@ const getVirtuosoScrollElement = (): HTMLElement | null => {
     return globalState.virtuosoScrollElement;
   }
 
-  const targetDocument = parent.document ?? document;
-  const list = targetDocument.querySelector('.sidebar-item-list') as HTMLElement | null;
+  const list = getScrollablePanesContainer();
   globalState.virtuosoScrollElement = list;
 
   return list;

@@ -1,16 +1,14 @@
-import { globalState, isActivePaneIndexValid } from '../../core/pluginGlobalState';
+import { getScrollablePanesContainer } from '../../core/domUtils';
 import { debugError } from '../../core/logger';
+import { globalState, isActivePaneIndexValid } from '../../core/pluginGlobalState';
 import { setActivePaneByIndex } from './paneNavigation';
 
 const PANE_FOCUS_SELECTORS = {
-  panesContainer: '.sidebar-item-list.flex-1.scrollbar-spacing',
   paneItem: '.sidebar-item.content',
 } as const;
 
 export const setupMousePaneFocus = (): (() => void) => {
-  const panesContainer = parent.document.querySelector(
-    PANE_FOCUS_SELECTORS.panesContainer
-  ) as HTMLElement | null;
+  const panesContainer = getScrollablePanesContainer();
   if (!panesContainer) {
     debugError('Could not find panes container for mousedown listener.');
 
@@ -21,10 +19,7 @@ export const setupMousePaneFocus = (): (() => void) => {
     const target = e.target as HTMLElement;
     if (!target) return;
     if (!isActivePaneIndexValid()) return;
-    const activePane =
-      globalState.currentActivePaneIndex !== null
-        ? globalState.cachedPanes[globalState.currentActivePaneIndex]
-        : null;
+    const activePane = globalState.cachedPanes[globalState.currentActivePaneIndex];
     if (activePane && activePane.contains(target)) return;
     const clickedPaneElement = target.closest(PANE_FOCUS_SELECTORS.paneItem) as HTMLElement | null;
     if (!clickedPaneElement) return;
