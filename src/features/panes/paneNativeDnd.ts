@@ -1,3 +1,4 @@
+import { LOGSEQ_UI_SELECTORS } from '../../core/constants';
 import { getScrollablePanesContainer } from '../../core/domUtils';
 import { globalState } from '../../core/pluginGlobalState';
 import { EXPECTED_MUTATIONS } from '../observers/types';
@@ -82,7 +83,7 @@ const hideDropZones = (pane: HTMLElement): void => {
 };
 
 const hideAllDropZones = (): void => {
-  const allPanes = parent.document.querySelectorAll('.sidebar-item');
+  const allPanes = parent.document.querySelectorAll(LOGSEQ_UI_SELECTORS.sidebarItem);
   allPanes.forEach(pane => hideDropZones(pane as HTMLElement));
 };
 
@@ -125,7 +126,9 @@ const handlePotentialNativeDropEnd = (e: DragEvent) => {
     return;
   }
   const draggedElement = e.target as HTMLElement;
-  const draggedPaneElement = draggedElement.closest('.sidebar-item') as HTMLElement | null;
+  const draggedPaneElement = draggedElement.closest(
+    LOGSEQ_UI_SELECTORS.sidebarItem
+  ) as HTMLElement | null;
   const destinationPaneIndex = dragAndDropData.destinationPaneIndex;
   const destinationPaneSide = dragAndDropData.destinationPaneSide;
   const destinationPaneElement =
@@ -178,7 +181,9 @@ export const setupNativeDragDropListener = (): (() => void) => {
       return;
     }
     const draggedElement = e.target as HTMLElement;
-    const draggedPane = draggedElement.closest('.sidebar-item') as HTMLElement | null;
+    const draggedPane = draggedElement.closest(
+      LOGSEQ_UI_SELECTORS.sidebarItem
+    ) as HTMLElement | null;
 
     if (!draggedPane) {
       dragAndDropData = {
@@ -217,7 +222,9 @@ export const setupNativeDragDropListener = (): (() => void) => {
 
     e.preventDefault();
     const targetElement = e.target as HTMLElement;
-    const paneElement = targetElement.closest('.sidebar-item') as HTMLElement | null;
+    const paneElement = targetElement.closest(
+      LOGSEQ_UI_SELECTORS.sidebarItem
+    ) as HTMLElement | null;
 
     if (!paneElement || paneElement === dragAndDropData.draggedPaneElement) {
       hideAllDropZones();
@@ -225,7 +232,7 @@ export const setupNativeDragDropListener = (): (() => void) => {
       return;
     }
 
-    const allPanes = parent.document.querySelectorAll('.sidebar-item');
+    const allPanes = parent.document.querySelectorAll(LOGSEQ_UI_SELECTORS.sidebarItem);
     allPanes.forEach(pane => {
       if (pane !== paneElement) hideDropZones(pane as HTMLElement);
     });
@@ -252,7 +259,9 @@ export const setupNativeDragDropListener = (): (() => void) => {
     }
 
     const targetElement = e.target as HTMLElement;
-    const paneElement = targetElement.closest('.sidebar-item') as HTMLElement | null;
+    const paneElement = targetElement.closest(
+      LOGSEQ_UI_SELECTORS.sidebarItem
+    ) as HTMLElement | null;
     const relatedTarget = e.relatedTarget as HTMLElement | null;
 
     if (paneElement && relatedTarget && !paneElement.contains(relatedTarget)) {
@@ -279,7 +288,9 @@ export const setupNativeDragDropListener = (): (() => void) => {
     e.stopImmediatePropagation();
     const targetElement = e.target as HTMLElement;
     if (!targetElement) return;
-    const paneElement = targetElement.closest('.sidebar-item') as HTMLElement | null;
+    const paneElement = targetElement.closest(
+      LOGSEQ_UI_SELECTORS.sidebarItem
+    ) as HTMLElement | null;
     const samePane = paneElement === dragAndDropData.draggedPaneElement;
     const paneIndex = parseInt(paneElement?.dataset.currentIndex ?? '-1', 10);
     if (!paneElement || Number.isNaN(paneIndex) || samePane) return;

@@ -1,4 +1,4 @@
-import { APP_SETTINGS_CONFIG } from '../../../core/constants';
+import { APP_SETTINGS_CONFIG, LOGSEQ_UI_SELECTORS } from '../../../core/constants';
 import {
   getPaneIdFromPane,
   getScrollablePanesContainer,
@@ -476,7 +476,7 @@ const getActivePaneContext = (
   target: HTMLElement
 ): Pick<PendingShiftClick, 'activePaneId' | 'activePaneIndex'> => {
   const panesContainer = getScrollablePanesContainer();
-  const paneElement = target.closest('.sidebar-item') as HTMLElement | null;
+  const paneElement = target.closest(LOGSEQ_UI_SELECTORS.sidebarItem) as HTMLElement | null;
   if (panesContainer && paneElement && panesContainer.contains(paneElement)) {
     const activePaneId = getPaneIdFromPane(paneElement);
     const indexValue = parseInt(paneElement.dataset.currentIndex ?? '-1', 10);

@@ -1,4 +1,5 @@
 // AI slop
+import { LOGSEQ_UI_SELECTORS } from '../../../core/constants';
 import {
   getPaneTitle,
   getPaneIdFromPane,
@@ -110,7 +111,7 @@ const getFocusedPane = (): HTMLElement | null => {
   const activeElement = parent.document.activeElement as HTMLElement | null;
   if (!activeElement) return null;
 
-  return activeElement.closest('.sidebar-item') as HTMLElement | null;
+  return activeElement.closest(LOGSEQ_UI_SELECTORS.sidebarItem) as HTMLElement | null;
 };
 
 export const getActivePaneElement = (currentSidebarPanes: Element[]): Element | null => {

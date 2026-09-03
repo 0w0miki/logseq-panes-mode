@@ -14,6 +14,7 @@ export const TABS_CONTAINER_CLASSES = {
 
 export const LOGSEQ_UI_SELECTORS = {
   panesContainer: '.sidebar-item-list',
+  sidebarItem: '.sidebar-item',
   tabTitle: '.sidebar-item-header div.ml-1:not(.text-sm)',
   paneContentWrapper: '.content',
   commandPalette: '.ui__modal-panel',

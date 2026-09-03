@@ -1,3 +1,4 @@
+import { LOGSEQ_UI_SELECTORS } from '../../core/constants';
 import { arePanesDifferent, getScrollablePanesContainer } from '../../core/domUtils';
 import { globalState } from '../../core/pluginGlobalState';
 
@@ -5,7 +6,9 @@ export const getSidebarPanes = (forceRefresh: boolean = false): Element[] => {
   const container = getScrollablePanesContainer();
   if (!container) return [];
   if (forceRefresh || globalState.cachedPanes.length === 0) {
-    globalState.cachedPanes = Array.from(container.querySelectorAll(':scope > .sidebar-item'));
+    globalState.cachedPanes = Array.from(
+      container.querySelectorAll(`:scope > ${LOGSEQ_UI_SELECTORS.sidebarItem}`)
+    );
     syncPaneIndices(globalState.cachedPanes);
   }
 
@@ -16,7 +19,7 @@ export const getCurrentSidebarPanes = (container?: Element): Element[] => {
   const panesContainer = container || getScrollablePanesContainer();
   if (!panesContainer) return [];
 
-  return Array.from(panesContainer.querySelectorAll(':scope > .sidebar-item'));
+  return Array.from(panesContainer.querySelectorAll(`:scope > ${LOGSEQ_UI_SELECTORS.sidebarItem}`));
 };
 
 export const refreshPanesElementsCache = (updatedPanes?: Element[]): void => {
@@ -30,7 +33,9 @@ export const refreshPanesElementsCache = (updatedPanes?: Element[]): void => {
     return;
   }
 
-  globalState.cachedPanes = Array.from(container.querySelectorAll(':scope >.sidebar-item'));
+  globalState.cachedPanes = Array.from(
+    container.querySelectorAll(`:scope > ${LOGSEQ_UI_SELECTORS.sidebarItem}`)
+  );
   syncPaneIndices(globalState.cachedPanes);
 };
 

@@ -1,11 +1,8 @@
+import { LOGSEQ_UI_SELECTORS } from '../../core/constants';
 import { getScrollablePanesContainer } from '../../core/domUtils';
 import { debugError } from '../../core/logger';
 import { globalState, isActivePaneIndexValid } from '../../core/pluginGlobalState';
 import { setActivePaneByIndex } from './paneNavigation';
-
-const PANE_FOCUS_SELECTORS = {
-  paneItem: '.sidebar-item.content',
-} as const;
 
 export const setupMousePaneFocus = (): (() => void) => {
   const panesContainer = getScrollablePanesContainer();
@@ -21,7 +18,9 @@ export const setupMousePaneFocus = (): (() => void) => {
     if (!isActivePaneIndexValid()) return;
     const activePane = globalState.cachedPanes[globalState.currentActivePaneIndex];
     if (activePane && activePane.contains(target)) return;
-    const clickedPaneElement = target.closest(PANE_FOCUS_SELECTORS.paneItem) as HTMLElement | null;
+    const clickedPaneElement = target.closest(
+      `${LOGSEQ_UI_SELECTORS.sidebarItem}.content`
+    ) as HTMLElement | null;
     if (!clickedPaneElement) return;
     const clickedIndexString = clickedPaneElement.dataset.currentIndex;
     const clickedIndex = parseInt(clickedIndexString ?? '-1', 10);
