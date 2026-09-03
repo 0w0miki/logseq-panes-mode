@@ -18,13 +18,10 @@ import { toggleMultiColumnForPane } from '../panes/paneMultiColumn';
 import { toggleMainContent } from '../../core/layout/layout';
 import {
   exitIfEditing,
-  isPrimaryShortcutModifierPressed,
   waitForDomChanges,
 } from '../../core/utils';
 import { debugInfo } from '../../core/logger';
 import { getPluginSettings } from '../../core/pluginSettings';
-
-let cleanupPaletteHotkeys: (() => void) | null = null;
 
 const createShortcutRegistrar = () => {
   return (
@@ -78,31 +75,6 @@ const getCommandPaletteRoot = (): HTMLElement | null => {
       return !isHidden;
     }) ?? null
   );
-};
-
-const moveCommandPaletteSelection = (direction: 'up' | 'down'): boolean => {
-  const paletteRoot = getCommandPaletteRoot();
-  if (!paletteRoot) return false;
-
-  const paletteInput = paletteRoot.querySelector('input') as HTMLElement | null;
-  const activeElement = parent.document.activeElement as HTMLElement | null;
-  const target =
-    (activeElement && paletteRoot.contains(activeElement) && activeElement) ||
-    paletteInput ||
-    paletteRoot;
-
-  const key = direction === 'down' ? 'ArrowDown' : 'ArrowUp';
-  const syntheticEvent = new KeyboardEvent('keydown', {
-    key,
-    code: key,
-    keyCode: direction === 'down' ? 40 : 38,
-    which: direction === 'down' ? 40 : 38,
-    bubbles: true,
-    cancelable: true,
-  });
-  target.dispatchEvent(syntheticEvent);
-
-  return true;
 };
 
 // --- Pane navigation ---
@@ -558,27 +530,6 @@ const registerDebugShortcuts = (registerShortcut: ReturnType<typeof createShortc
   );
 };
 
-const registerPaletteShortcuts = (registerShortcut: ReturnType<typeof createShortcutRegistrar>) => {
-  registerShortcut(
-    'panesMode.paletteDown',
-    'Command palette go one item down',
-    'mod+j',
-    () => {
-      moveCommandPaletteSelection('down');
-    },
-    { requiresPanesMode: false }
-  );
-  registerShortcut(
-    'panesMode.paletteUp',
-    'Command palette go one item up',
-    'mod+k',
-    () => {
-      moveCommandPaletteSelection('up');
-    },
-    { requiresPanesMode: false }
-  );
-};
-
 const registerNumericTabShortcuts = (
   registerShortcut: ReturnType<typeof createShortcutRegistrar>
 ) => {
@@ -587,33 +538,6 @@ const registerNumericTabShortcuts = (
       focusPaneByIndex(index - 1)
     );
   }
-};
-
-const ensurePaletteNavigationHotkeys = (): void => {
-  if (cleanupPaletteHotkeys) return;
-
-  const paletteHotkeyHandler = (e: KeyboardEvent) => {
-    const isMod = isPrimaryShortcutModifierPressed(e);
-    const key = e.key?.toLowerCase();
-    if (!isMod || !key) return;
-
-    const noModifiers = !e.altKey && !e.shiftKey;
-    if (!noModifiers) return;
-    if (key !== 'j' && key !== 'k') return;
-    const handled = moveCommandPaletteSelection(key === 'j' ? 'down' : 'up');
-    if (handled) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  };
-
-  const attach = (target: Window) => target.addEventListener('keydown', paletteHotkeyHandler, true);
-  attach(window);
-  attach(parent.window);
-  cleanupPaletteHotkeys = () => {
-    window.removeEventListener('keydown', paletteHotkeyHandler, true);
-    parent.window.removeEventListener('keydown', paletteHotkeyHandler, true);
-  };
 };
 
 // --- Entry points ---
@@ -631,8 +555,5 @@ export const setupKeyboardShortcuts = async (togglePanesModeMode: () => Promise<
   registerPaneManagementShortcuts(registerShortcut);
   registerModalShortcuts(registerShortcut);
   registerDebugShortcuts(registerShortcut);
-  registerPaletteShortcuts(registerShortcut);
   registerNumericTabShortcuts(registerShortcut);
-
-  ensurePaletteNavigationHotkeys();
 };
