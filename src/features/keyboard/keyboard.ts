@@ -112,7 +112,7 @@ const focusPaneByIndex = async (targetIndex: number) => {
   }
 };
 
-const focusPageEdge = async (position: 'top' | 'bottom') => {
+const jumpTo = async (position: 'top' | 'bottom') => {
   if (!isActivePaneIndexValid()) return;
   const activePane = globalState.cachedPanes[
     globalState.currentActivePaneIndex as number
@@ -124,7 +124,6 @@ const focusPageEdge = async (position: 'top' | 'bottom') => {
 
   const targetBlock =
     position === 'top' ? blockElements[0] : blockElements[blockElements.length - 1];
-  if (!targetBlock.getAttribute('blockid')) return;
 
   targetBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
@@ -133,34 +132,10 @@ const handleFocusTextOnEnter = async () => {
   if (!isActivePaneIndexValid()) return;
   const activePane = globalState.cachedPanes[globalState.currentActivePaneIndex as number];
   if (!activePane) return;
-  const blockElements = Array.from(activePane.querySelectorAll<HTMLElement>('[blockid]'));
-  if (blockElements.length === 0) return;
-  const targetBlock =
-    blockElements.find(block => (block.getAttribute('data-refs-self') ?? '').trim() === '') ??
-    blockElements[0];
+  const targetBlock = activePane.querySelector<HTMLElement>('[blockid]');
   if (!targetBlock) return;
   const blockId = targetBlock.getAttribute('blockid');
-  if (!blockId) return;
   await logseq.Editor.editBlock(blockId, { pos: 0 });
-  requestAnimationFrame(() => {
-    const active = parent.document.activeElement as HTMLElement | null;
-    const editable =
-      targetBlock.querySelector<HTMLElement>('[contenteditable="true"], textarea, input') ?? active;
-    if (!editable) return;
-    if (editable instanceof HTMLInputElement || editable instanceof HTMLTextAreaElement) {
-      editable.setSelectionRange(0, 0);
-
-      return;
-    }
-    if (!editable.isContentEditable) return;
-    const selection = parent.window.getSelection();
-    if (!selection) return;
-    const range = parent.document.createRange();
-    range.selectNodeContents(editable);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  });
 };
 
 // --- Pane scroll ---
@@ -250,27 +225,26 @@ const handleMoveCurrentPane = async (direction: 'left' | 'right') => {
       : (currentIndex + 1) % panes.length;
   const targetPane = panes[targetIndex];
 
-  globalState.expectedMutations.push(
-    direction === 'left'
-      ? EXPECTED_MUTATIONS.movePaneLeftKeyboard
-      : EXPECTED_MUTATIONS.movePaneRightKeyboard
-  );
-
   if (direction === 'left') {
-    if (currentIndex >= 1) {
+    globalState.expectedMutations.push(EXPECTED_MUTATIONS.movePaneLeftKeyboard);
+
+    if (currentIndex === 0) {
+      targetPane.after(currentPane);
+    } else {
+      scrollableContainer.insertBefore(currentPane, targetPane);
+    }
+  } else {
+    globalState.expectedMutations.push(EXPECTED_MUTATIONS.movePaneRightKeyboard);
+
+    if (targetIndex === 0) {
       scrollableContainer.insertBefore(currentPane, targetPane);
     } else {
       targetPane.after(currentPane);
     }
-  } else if (targetIndex === 0) {
-    scrollableContainer.insertBefore(currentPane, panes[0]);
-  } else {
-    targetPane.after(currentPane);
   }
 
   const updatedPanes = getCurrentSidebarPanes();
-  const newIndex = updatedPanes.indexOf(currentPane);
-  setActivePaneByIndex(newIndex, updatedPanes, false, 300);
+  setActivePaneByIndex(targetIndex, updatedPanes, false, 300);
   updateTabs(updatedPanes);
   updatePanesOrderInStorage(updatedPanes);
 };
@@ -303,19 +277,9 @@ const handleToggleTabs = async () => {
 
 const toggleMultiColumnForActivePane = async (): Promise<void> => {
   await exitIfEditing();
-  const panes = getSidebarPanes(true);
-  if (!isActivePaneIndexValid(panes)) {
-    globalState.currentActivePaneIndex = panes.length > 0 ? 0 : null;
-  }
-  if (!isActivePaneIndexValid(panes)) return;
-  const activePane =
-    globalState.currentActivePaneIndex !== null
-      ? (panes[globalState.currentActivePaneIndex] as HTMLElement)
-      : null;
-  if (activePane) {
-    globalState.cachedPanes = panes;
-    toggleMultiColumnForPane(activePane);
-  }
+  const activePane = getActivePaneElement();
+  if (!activePane) return;
+  toggleMultiColumnForPane(activePane);
 };
 
 // --- Modal toggles ---
@@ -396,8 +360,7 @@ const registerModeShortcuts = (
   togglePanesModeMode: () => Promise<void>
 ) => {
   registerShortcut(
-    'panesMode.toggle',
-    'Toggle panesMode mode',
+    'panesMode.toggle', 'Toggle panesMode mode',
     'mod+shift+y',
     togglePanesModeMode,
     { requiresPanesMode: false }
@@ -409,84 +372,89 @@ const registerPaneNavigationShortcuts = (
 ) => {
   registerShortcut('panesMode.nextPane', 'Move active to next pane', 'mod+e', handleNextPane);
   registerShortcut('panesMode.prevPane', 'Move active to previous pane', 'mod+q', handlePrevPane);
-  registerShortcut('panesMode.focusBottom', 'Focus bottom of pane', 'mod+d', () =>
-    focusPageEdge('bottom')
+  registerShortcut('panesMode.jumpBottom', 'Jump to bottom of pane', 'mod+d', () => jumpTo('bottom'));
+  registerShortcut('panesMode.jumpTop', 'Jump to top of pane', 'mod+u', () => jumpTo('top'));
+  registerShortcut(
+    'panesMode.scrollUp', 'Scroll active pane up',
+    'mod+up',
+    () => handlePaneScroll('Up')
   );
-  registerShortcut('panesMode.focusTop', 'Focus top of pane', 'mod+u', () => focusPageEdge('top'));
-  registerShortcut('panesMode.focusActivePane', 'Focus active pane', '', handleFocusActivePane);
+  registerShortcut(
+    'panesMode.scrollDown', 'Scroll active pane down',
+    'mod+down',
+    () => handlePaneScroll('Down')
+  );
+  registerShortcut(
+    'panesMode.focusTextOnEnter', 'Focus text in active pane',
+    'mod+shift+d',
+    handleFocusTextOnEnter
+  );
 };
 
 const registerPaneManagementShortcuts = (
   registerShortcut: ReturnType<typeof createShortcutRegistrar>
 ) => {
-  const { movePaneLeftShortcut, movePaneRightShortcut } = getPluginSettings();
-
+  registerShortcut('panesMode.focusActivePane', 'Focus active pane', '', handleFocusActivePane);
   registerShortcut(
-    'panesMode.closePane',
-    'Close pane (Cmd/Ctrl+W always works)',
+    'panesMode.closePane', 'Close pane (Cmd/Ctrl+W always works)',
     'mod+w',
     handleCloseCurrentPane
   );
-  registerShortcut('panesMode.moveLeft', 'Move pane left in order', 'mod+shift+h', () =>
-    handleMoveCurrentPane('left')
+  registerShortcut(
+    'panesMode.moveLeft', 'Move pane left in order',
+    'mod+shift+h',
+    () => handleMoveCurrentPane('left')
   );
-  registerShortcut('panesMode.moveRight', 'Move pane right in order', 'mod+shift+l', () =>
-    handleMoveCurrentPane('right')
+  registerShortcut('panesMode.moveRight', 'Move pane right in order',
+    'mod+shift+l',
+    () => handleMoveCurrentPane('right')
   );
   registerShortcut(
-    'panesMode.toggleTabs',
-    'Toggle tabs visibility',
+    'panesMode.toggleTabs', 'Toggle tabs visibility',
     'mod+shift+b',
     handleToggleTabs
   );
   registerShortcut(
-    'panesMode.toggleCollapse',
-    'Toggle pane collapse',
+    'panesMode.toggleCollapse', 'Toggle pane collapse',
     'mod+t',
     handleToggleCollapse
   );
   registerShortcut(
-    'panesMode.multiColumn',
-    'Toggle multi-column for pane',
+    'panesMode.multiColumn', 'Toggle multi-column for pane',
     'mod+alt+m',
     toggleMultiColumnForActivePane
   );
   registerShortcut(
-    'panesMode.scrollUp', 'Scroll active pane up', 'mod+up',
-    () => handlePaneScroll('Up')
-  );
-  registerShortcut(
-    'panesMode.scrollDown', 'Scroll active pane down', 'mod+down',
-    () => handlePaneScroll('Down')
-  );
-  registerShortcut(
-    'panesMode.resizeLeft', 'Shrink active pane width', 'mod+shift+left',
+    'panesMode.resizeLeft', 'Shrink active pane width',
+    'mod+shift+left',
     () => handlePaneResize('Left')
   );
   registerShortcut(
-    'panesMode.resizeRight', 'Grow active pane width', 'mod+shift+right',
+    'panesMode.resizeRight', 'Grow active pane width',
+    'mod+shift+right',
     () => handlePaneResize('Right')
   );
   registerShortcut(
-    'panesMode.resizeUp', 'Grow active pane height', 'mod+alt+up',
+    'panesMode.resizeUp', 'Grow active pane height',
+    'mod+alt+up',
     () => handlePaneResize('Up')
   );
   registerShortcut(
-    'panesMode.resizeDown', 'Shrink active pane height', 'mod+alt+down',
+    'panesMode.resizeDown', 'Shrink active pane height',
+    'mod+alt+down',
     () => handlePaneResize('Down')
   );
   registerShortcut(
-    'panesMode.focusTextOnEnter',
-    'Focus text in active pane',
-    'mod+shift+d',
-    handleFocusTextOnEnter
-  );
-  registerShortcut(
-    'panesMode.toggleMainContent',
-    'Toggle main content',
+    'panesMode.toggleMainContent', 'Toggle main content',
     't m',
     () => toggleMainContent()
   );
+
+  for (let index = 1; index <= 9; index++) {
+    registerShortcut(`panesMode.tab.${index}`, `Focus tab ${index}`, `mod+${index}`,
+      () => focusPaneByIndex(index - 1)
+    );
+  }
 };
 
 const registerModalShortcuts = (registerShortcut: ReturnType<typeof createShortcutRegistrar>) => {
@@ -496,33 +464,20 @@ const registerModalShortcuts = (registerShortcut: ReturnType<typeof createShortc
 
 const registerDebugShortcuts = (registerShortcut: ReturnType<typeof createShortcutRegistrar>) => {
   registerShortcut(
-    'panesMode.debugLogState',
-    'Log global state and panes',
+    'panesMode.debugLogState', 'Log global state and panes',
     'mod+shift+u',
     logDebugStateAndPanes
   );
   registerShortcut(
-    'panesMode.logLocalStorage',
-    'Log local storage',
+    'panesMode.logLocalStorage', 'Log local storage',
     'mod+alt+o',
     logLocalStorage
   );
   registerShortcut(
-    'panesMode.debugGetUserConfigs',
-    'Log getUserConfigs() raw return',
+    'panesMode.debugGetUserConfigs', 'Log getUserConfigs() raw return',
     'mod+shift+.',
     logUserConfigs
   );
-};
-
-const registerNumericTabShortcuts = (
-  registerShortcut: ReturnType<typeof createShortcutRegistrar>
-) => {
-  for (let index = 1; index <= 9; index++) {
-    registerShortcut(`panesMode.tab.${index}`, `Focus tab ${index}`, `mod+${index}`, () =>
-      focusPaneByIndex(index - 1)
-    );
-  }
 };
 
 // --- Entry points ---
@@ -540,5 +495,4 @@ export const setupKeyboardShortcuts = async (togglePanesModeMode: () => Promise<
   registerPaneManagementShortcuts(registerShortcut);
   registerModalShortcuts(registerShortcut);
   registerDebugShortcuts(registerShortcut);
-  registerNumericTabShortcuts(registerShortcut);
 };
