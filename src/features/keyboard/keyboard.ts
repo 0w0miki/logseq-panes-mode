@@ -16,10 +16,7 @@ import { hideProjectsModal, showProjectsModal } from '../projects/projects';
 import { updateTabs } from '../tabs/tabs';
 import { toggleMultiColumnForPane } from '../panes/paneMultiColumn';
 import { toggleMainContent } from '../../core/layout/layout';
-import {
-  exitIfEditing,
-  waitForDomChanges,
-} from '../../core/utils';
+import { exitIfEditing } from '../../core/utils';
 import { debugInfo } from '../../core/logger';
 import { getPluginSettings } from '../../core/pluginSettings';
 
@@ -237,16 +234,6 @@ const isEditableTarget = (target: EventTarget | null): boolean => {
 
 // --- Pane management ---
 
-const scrollActiveTabIntoView = () => {
-  void waitForDomChanges().then(() => {
-    const tabsContainer = getTabsContainer(APP_SETTINGS_CONFIG.isVerticalTabs);
-    const activeTab = tabsContainer?.querySelector('.panesMode-tab.active-tab') as HTMLElement;
-    if (tabsContainer && activeTab) {
-      tabsContainer.scrollTo({ left: activeTab.offsetLeft, behavior: 'smooth' });
-    }
-  });
-};
-
 const handleMoveCurrentPane = async (direction: 'left' | 'right') => {
   await exitIfEditing();
 
@@ -287,7 +274,6 @@ const handleMoveCurrentPane = async (direction: 'left' | 'right') => {
   setActivePaneByIndex(newIndex, updatedPanes, false, 300);
   updateTabs(updatedPanes);
   updatePanesOrderInStorage(updatedPanes);
-  scrollActiveTabIntoView();
 };
 
 const handleCloseCurrentPane = async () => {

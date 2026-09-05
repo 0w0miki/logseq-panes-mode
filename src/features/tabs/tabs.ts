@@ -7,7 +7,7 @@ import {
   getTabsContainer,
 } from '../../core/domUtils';
 import { globalState } from '../../core/pluginGlobalState';
-import { showError, waitForDomChanges } from '../../core/utils';
+import { showError } from '../../core/utils';
 import { EXPECTED_MUTATIONS } from '../observers/types';
 import { closePaneByIndex } from '../panes/paneActions';
 import { getCurrentSidebarPanes, syncPaneIndices } from '../panes/paneCache';
@@ -197,14 +197,6 @@ const handleDrop = (e: DragEvent): void => {
   const newDraggedPaneIndex = updatedPanes.indexOf(draggedPane);
   setActivePaneByIndex(newDraggedPaneIndex, updatedPanes);
   updateTabs(updatedPanes);
-
-  waitForDomChanges().then(() => {
-    const tabsContainer = getTabsContainer(APP_SETTINGS_CONFIG.isVerticalTabs);
-    const activeTab = tabsContainer?.querySelector('.panesMode-tab.active-tab') as HTMLElement;
-    if (tabsContainer && activeTab) {
-      centerActiveTabWithPadding(tabsContainer, activeTab, 'smooth');
-    }
-  });
 
   globalState.draggedTabIndex = null;
   const tabsContainer = getTabsContainer(APP_SETTINGS_CONFIG.isVerticalTabs);
