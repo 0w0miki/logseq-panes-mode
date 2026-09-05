@@ -5,8 +5,6 @@ import { globalState } from './pluginGlobalState';
 export type PluginSettings = {
   domWaitCoefficient: number;
   enableDebugingConsoles: boolean;
-  movePaneLeftShortcut: string;
-  movePaneRightShortcut: string;
   maxTabs: number;
   autoCloseOldestTab: boolean;
   isVerticalTabs: boolean;
@@ -45,8 +43,6 @@ export type PluginSettings = {
 const defaultSettings: PluginSettings = {
   domWaitCoefficient: 1,
   enableDebugingConsoles: false,
-  movePaneLeftShortcut: 'mod+shift+h',
-  movePaneRightShortcut: 'mod+shift+l',
   maxTabs: APP_SETTINGS_CONFIG.defaultMaxTabs,
   autoCloseOldestTab: false,
   isVerticalTabs: APP_SETTINGS_CONFIG.isVerticalTabs,

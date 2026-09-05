@@ -18,7 +18,6 @@ import { toggleMultiColumnForPane } from '../panes/paneMultiColumn';
 import { toggleMainContent } from '../../core/layout/layout';
 import { exitIfEditing } from '../../core/utils';
 import { debugInfo } from '../../core/logger';
-import { getPluginSettings } from '../../core/pluginSettings';
 
 const createShortcutRegistrar = () => {
   return (
@@ -428,10 +427,10 @@ const registerPaneManagementShortcuts = (
     'mod+w',
     handleCloseCurrentPane
   );
-  registerShortcut('panesMode.moveLeft', 'Move pane left in order', movePaneLeftShortcut, () =>
+  registerShortcut('panesMode.moveLeft', 'Move pane left in order', 'mod+shift+h', () =>
     handleMoveCurrentPane('left')
   );
-  registerShortcut('panesMode.moveRight', 'Move pane right in order', movePaneRightShortcut, () =>
+  registerShortcut('panesMode.moveRight', 'Move pane right in order', 'mod+shift+l', () =>
     handleMoveCurrentPane('right')
   );
   registerShortcut(
